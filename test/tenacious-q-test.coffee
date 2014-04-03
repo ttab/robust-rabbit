@@ -12,7 +12,7 @@ describe 'TenaciousQ', ->
         
     describe '._mkopts()', ->
         rm = new TenaciousQ {
-            queue: -> Q {}
+            queue: -> Q { bind: -> }
             exchange: -> Q {}
             }, { name: 'test' }
 
