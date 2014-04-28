@@ -3,7 +3,7 @@ log = require 'bog'
 
 module.exports = class TenaciousQ
     
-    constructor: (@amqpc, @queue, retryDelay=60000, @maxRetries=3) ->
+    constructor: (@amqpc, @queue, retryDelay=60000, @maxRetries=3, @prefetchCount=1) ->
         qname = queue.name
         exname = "#{qname}-flow"
         @exchange = @amqpc.exchange exname, { autoDelete: true, confirm: true }
@@ -38,7 +38,7 @@ module.exports = class TenaciousQ
             listener = options
             options = {}
         options.ack = true
-        options.prefetchCount = 1
+        options.prefetchCount = @prefetchCount
         @queue.subscribe options, (msg, headers, info, ack) =>
             listener msg, headers, info, {
                 acknowledge: =>
