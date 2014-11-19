@@ -1,12 +1,15 @@
-chai          = require 'chai'
-expect        = chai.expect
+chai                 = require 'chai'
+expect               = chai.expect
 chai.should()
 chai.use(require 'chai-as-promised')
 chai.use(require 'sinon-chai')
 { stub, spy, match } = require 'sinon'
 
-Q = require 'q'
-TenaciousQ = require '../lib/tenacious-q'
+log                  = require 'bog'
+Q                    = require 'q'
+TenaciousQ           = require '../lib/tenacious-q'
+
+log.level 'none'
 
 describe 'TenaciousQ', ->
         
@@ -37,37 +40,57 @@ describe 'TenaciousQ', ->
             opts.should.have.property 'headers'
             opts.headers.should.eql
                 retryCount: 23
+
+    describe '._msgbody()', ->
+        rm = new TenaciousQ {
+            queue: -> Q { bind: -> }
+            exchange: -> Q {}
+            }, { name: 'test' }
+
+        it 'should return the msg if this it a plain javascript object', ->
+            msg = { name: 'panda' }
+            rm._msgbody(msg, 'application/json').should.eql msg
+        
+        it 'should return the data part if it exists and is a Buffer', ->
+            body = new Buffer('panda')
+            msg =
+                data: body
+                contentType: 'application/octet-stream'
+            rm._msgbody(msg, 'application/octet-stream').should.eql body
     
     describe '.subscribe()', ->
-        rm = undefined
-
-        amqpc =
-            queue: stub().returns Q { bind: -> }
-            exchange: stub().returns Q {}
-
-        queue =
-            name: 'test'
-            subscribe: spy()
+        rm = queue = exchange = amqpc = undefined
 
         beforeEach ->
+            exchange = publish: spy()
+            
+            amqpc =
+                queue: stub().returns Q { bind: -> }
+                exchange: stub().returns Q exchange
+
+            queue =
+                name: 'test'
+                subscribe: spy()
             rm = new TenaciousQ amqpc, queue
 
         it 'should use the default exchange', ->
             amqpc.exchange.should.have.been.calledWith 'test-flow', { autoDelete: true, confirm: true }
 
         it 'should set up a retry queue', ->
-            amqpc.queue.should.have.been.calledWith 'test-retries',
-                durable: true
-                autoDelete: false
-                arguments:
-                    'x-message-ttl': 60000
-                    'x-dead-letter-exchange': '',
-                    'x-dead-letter-routing-key': 'test'
+            rm.exchange.then ->
+                amqpc.queue.should.have.been.calledWith 'test-retries',
+                    durable: true
+                    autoDelete: false
+                    arguments:
+                        'x-message-ttl': 60000
+                        'x-dead-letter-exchange': '',
+                        'x-dead-letter-routing-key': 'test'
     
         it 'should set up a failures queue', ->
-            amqpc.queue.should.have.been.calledWith 'test-failures',
-                durable: true
-                autoDelete: false
+            rm.exchange.then ->
+                amqpc.queue.should.have.been.calledWith 'test-failures',
+                    durable: true
+                    autoDelete: false
             
         it 'should use default options if none are given', ->
             rm.subscribe ->
@@ -95,3 +118,37 @@ describe 'TenaciousQ', ->
                     done()
                 rm.subscribe listener
                 queue.subscribe.getCall(0).args[1]()
+
+        describe 'the retry function', ->
+            beforeEach ->
+                queue.subscribe = spy()
+                rm = new TenaciousQ amqpc, queue
+                spy rm, '_msgbody'
+
+            it 'should queue the message for retry if allowd by retry count', (done) ->
+                _ack = { acknowledge: spy() }
+                listener = (msg, headers, info, ack) ->
+                    msg.should.eql { name: 'panda' }
+                    ack.retry()
+                    setTimeout ->
+                        exchange.publish.should.have.been.calledWith 'retry', msg, { contentType: 'application/json', headers: retryCount: 1 }
+                        rm._msgbody.should.have.been.calledWith msg, 'application/json'
+                        done()
+                    , 10
+                rm.subscribe listener
+                queue.subscribe.getCall(0).args[1] { name: 'panda' }, {}, { contentType: 'application/json' }, _ack
+                
+            it 'should queue the message as a failure if we have reached max number of retries', (done) ->
+                _ack = { acknowledge: spy() }
+                listener = (msg, headers, info, ack) ->
+                    msg.should.eql { name: 'panda' }
+                    ack.retry()
+                    setTimeout ->
+                        exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
+                        rm._msgbody.should.have.been.calledWith msg, 'application/json'
+                        done()
+                    , 10
+                rm.subscribe listener
+                queue.subscribe.getCall(0).args[1] { name: 'panda' }, { retryCount: 3 }, { contentType: 'application/json' }, _ack
+
+            

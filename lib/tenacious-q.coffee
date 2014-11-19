@@ -33,6 +33,12 @@ module.exports = class TenaciousQ
         opts.headers.retryCount = retryCount
         opts
 
+    _msgbody: (msg, contentType) ->
+        if contentType == 'application/json'
+            return msg
+        else
+            msg.data
+
     subscribe: (options, listener) =>
         if typeof options == 'function'
             listener = options
@@ -48,11 +54,11 @@ module.exports = class TenaciousQ
                     @exchange.then (ex) =>
                         if rc <= @maxRetries 
                             log.warn "retrying #{messageId}, retryCount=#{rc}"
-                            ex.publish 'retry', msg, @_mkopts(headers, info, rc), (err) ->
+                            ex.publish 'retry', @_msgbody(msg, info.contentType), @_mkopts(headers, info, rc), (err) ->
                                 ack.acknowledge() if not err
                         else
                             log.warn "failing #{messageId}, too many retries (#{@maxRetries})"
-                            ex.publish 'fail', msg, @_mkopts(headers, info, rc), (err) ->
+                            ex.publish 'fail', @_msgbody(msg, info.contentType), @_mkopts(headers, info, rc), (err) ->
                                 ack.acknowledge() if not err
                     .fail (err) ->
                         console.log err
