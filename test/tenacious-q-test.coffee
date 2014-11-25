@@ -62,7 +62,7 @@ describe 'TenaciousQ', ->
         rm = queue = exchange = amqpc = undefined
 
         beforeEach ->
-            exchange = publish: spy()
+            exchange = publish: stub().callsArg 3
             
             amqpc =
                 queue: stub().returns Q { bind: -> }
@@ -119,7 +119,7 @@ describe 'TenaciousQ', ->
                 rm.subscribe listener
                 queue.subscribe.getCall(0).args[1]()
 
-        describe 'the retry function', ->
+        describe 'the retry() function', ->
             beforeEach ->
                 queue.subscribe = spy()
                 rm = new TenaciousQ amqpc, queue
@@ -146,9 +146,30 @@ describe 'TenaciousQ', ->
                     setTimeout ->
                         exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
                         rm._msgbody.should.have.been.calledWith msg, 'application/json'
+                        _ack.acknowledge.should.have.been.calledOnce
                         done()
                     , 10
                 rm.subscribe listener
                 queue.subscribe.getCall(0).args[1] { name: 'panda' }, { retryCount: 3 }, { contentType: 'application/json' }, _ack
+
+        describe 'the fail() function', ->
+            beforeEach ->
+                queue.subscribe = spy()
+                rm = new TenaciousQ amqpc, queue
+                spy rm, '_msgbody'
+
+            it 'should queue the message as a failure', (done) ->
+                _ack = { acknowledge: spy() }
+                listener = (msg, headers, info, ack) ->
+                    msg.should.eql { name: 'panda' }
+                    ack.fail()
+                    setTimeout ->
+                        exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
+                        rm._msgbody.should.have.been.calledWith msg, 'application/json'
+                        _ack.acknowledge.should.have.been.calledOnce
+                        done()
+                    , 10
+                rm.subscribe listener
+                queue.subscribe.getCall(0).args[1] { name: 'panda' }, { }, { contentType: 'application/json' }, _ack
 
             

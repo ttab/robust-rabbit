@@ -61,6 +61,15 @@ module.exports = class TenaciousQ
                             ex.publish 'fail', @_msgbody(msg, info.contentType), @_mkopts(headers, info, rc), (err) ->
                                 ack.acknowledge() if not err
                     .fail (err) ->
+                        log.error err.stack
+                    .done()
+                fail: (messageId='<unknown>') =>
+                    @exchange.then (ex) =>
+                        log.warn "failing #{messageId}"
+                        ex.publish 'fail', @_msgbody(msg, info.contentType), @_mkopts(headers, info, headers.retryCount || 0), (err) ->
+                            ack.acknowledge() if not err
+                    .fail (err) ->
                         console.log err
+                        log.error err.stack
                     .done()
             }
