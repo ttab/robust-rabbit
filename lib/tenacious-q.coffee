@@ -54,20 +54,20 @@ module.exports = class TenaciousQ
                     @exchange.then (ex) =>
                         if rc <= @maxRetries 
                             log.warn "retrying #{messageId}, retryCount=#{rc}"
-                            ex.publish 'retry', @_msgbody(msg, info.contentType), @_mkopts(headers, info, rc), (err) ->
-                                ack.acknowledge() if not err
+                            ex.publish 'retry', @_msgbody(msg, info.contentType), @_mkopts(headers, info, rc)
+                            .then -> ack.acknowledge()
                         else
                             log.warn "failing #{messageId}, too many retries (#{@maxRetries})"
-                            ex.publish 'fail', @_msgbody(msg, info.contentType), @_mkopts(headers, info, rc), (err) ->
-                                ack.acknowledge() if not err
+                            ex.publish 'fail', @_msgbody(msg, info.contentType), @_mkopts(headers, info, rc)
+                            .then -> ack.acknowledge()
                     .fail (err) ->
                         log.error err.stack
                     .done()
                 fail: (messageId='<unknown>') =>
                     @exchange.then (ex) =>
                         log.warn "failing #{messageId}"
-                        ex.publish 'fail', @_msgbody(msg, info.contentType), @_mkopts(headers, info, headers.retryCount || 0), (err) ->
-                            ack.acknowledge() if not err
+                        ex.publish 'fail', @_msgbody(msg, info.contentType), @_mkopts(headers, info, headers.retryCount || 0)
+                        .then -> ack.acknowledge() 
                     .fail (err) ->
                         console.log err
                         log.error err.stack

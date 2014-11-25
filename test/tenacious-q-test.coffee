@@ -62,7 +62,7 @@ describe 'TenaciousQ', ->
         rm = queue = exchange = amqpc = undefined
 
         beforeEach ->
-            exchange = publish: stub().callsArg 3
+            exchange = publish: stub().returns Q()
             
             amqpc =
                 queue: stub().returns Q { bind: -> }
