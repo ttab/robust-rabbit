@@ -1,62 +1,8 @@
-chai                 = require 'chai'
-expect               = chai.expect
-chai.should()
-chai.use(require 'chai-as-promised')
-chai.use(require 'sinon-chai')
-{ stub, spy, match } = require 'sinon'
-
-log                  = require 'bog'
-Q                    = require 'q'
-TenaciousQ           = require '../lib/tenacious-q'
-
-log.level 'none'
+Q          = require 'q'
+TenaciousQ = require '../lib/tenacious-q'
+Ack        = require '../lib/ack'
 
 describe 'TenaciousQ', ->
-        
-    describe '._mkopts()', ->
-        rm = new TenaciousQ {
-            queue: -> Q { bind: -> }
-            exchange: -> Q {}
-            }, { name: 'test' }
-
-        it 'should copy relevant headers from deliveryInfo', ->
-            opts = rm._mkopts {}, {
-                contentType: 'text/panda',
-                contentEncoding: 'us-ascii',
-                myHeader: 'myValue' }
-            opts.should.have.property 'contentType', 'text/panda'
-            opts.should.have.property 'contentEncoding', 'us-ascii'
-            opts.should.not.have.property 'myHeader'
-
-        it 'should copy existing headers, and add a retryCount', ->
-            opts = rm._mkopts { panda: 'cub' }, {}, 23
-            opts.should.have.property 'headers'
-            opts.headers.should.eql
-                panda: 'cub'
-                retryCount: 23
-
-        it 'should set the retryCount even if there are no existing headers', ->
-            opts = rm._mkopts undefined, {}, 23
-            opts.should.have.property 'headers'
-            opts.headers.should.eql
-                retryCount: 23
-
-    describe '._msgbody()', ->
-        rm = new TenaciousQ {
-            queue: -> Q { bind: -> }
-            exchange: -> Q {}
-            }, { name: 'test' }
-
-        it 'should return the msg if this it a plain javascript object', ->
-            msg = { name: 'panda' }
-            rm._msgbody(msg, 'application/json').should.eql msg
-        
-        it 'should return the data part if it exists and is a Buffer', ->
-            body = new Buffer('panda')
-            msg =
-                data: body
-                contentType: 'application/octet-stream'
-            rm._msgbody(msg, 'application/octet-stream').should.eql body
     
     describe '.subscribe()', ->
         rm = queue = exchange = amqpc = undefined
@@ -111,65 +57,15 @@ describe 'TenaciousQ', ->
                 rm.subscribe listener
                 queue.subscribe.getCall(0).args[1]()
 
-            it 'and when invoked, the listener should recieve an ack functions', (done) ->
+            it 'and when invoked, the listener should recieve an ack object', (done) ->
                 listener = (msg, headers, info, ack)->
-                    ack.acknowledge.should.be.a 'function'
-                    ack.retry.should.be.a 'function'
+                    ack.should.be.instanceOf Ack
+                    ack.msg.should.equal 'msg'
+                    ack.headers.should.equal 'headers'
+                    ack.info.should.equal 'info'
+                    ack.ack.should.equal 'ack'
                     done()
                 rm.subscribe listener
-                queue.subscribe.getCall(0).args[1]()
-
-        describe 'the retry() function', ->
-            beforeEach ->
-                queue.subscribe = spy()
-                rm = new TenaciousQ amqpc, queue
-                spy rm, '_msgbody'
-
-            it 'should queue the message for retry if allowd by retry count', (done) ->
-                _ack = { acknowledge: spy() }
-                listener = (msg, headers, info, ack) ->
-                    msg.should.eql { name: 'panda' }
-                    ack.retry()
-                    setTimeout ->
-                        exchange.publish.should.have.been.calledWith 'retry', msg, { contentType: 'application/json', headers: retryCount: 1 }
-                        rm._msgbody.should.have.been.calledWith msg, 'application/json'
-                        done()
-                    , 10
-                rm.subscribe listener
-                queue.subscribe.getCall(0).args[1] { name: 'panda' }, {}, { contentType: 'application/json' }, _ack
-                
-            it 'should queue the message as a failure if we have reached max number of retries', (done) ->
-                _ack = { acknowledge: spy() }
-                listener = (msg, headers, info, ack) ->
-                    msg.should.eql { name: 'panda' }
-                    ack.retry()
-                    setTimeout ->
-                        exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
-                        rm._msgbody.should.have.been.calledWith msg, 'application/json'
-                        _ack.acknowledge.should.have.been.calledOnce
-                        done()
-                    , 10
-                rm.subscribe listener
-                queue.subscribe.getCall(0).args[1] { name: 'panda' }, { retryCount: 3 }, { contentType: 'application/json' }, _ack
-
-        describe 'the fail() function', ->
-            beforeEach ->
-                queue.subscribe = spy()
-                rm = new TenaciousQ amqpc, queue
-                spy rm, '_msgbody'
-
-            it 'should queue the message as a failure', (done) ->
-                _ack = { acknowledge: spy() }
-                listener = (msg, headers, info, ack) ->
-                    msg.should.eql { name: 'panda' }
-                    ack.fail()
-                    setTimeout ->
-                        exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
-                        rm._msgbody.should.have.been.calledWith msg, 'application/json'
-                        _ack.acknowledge.should.have.been.calledOnce
-                        done()
-                    , 10
-                rm.subscribe listener
-                queue.subscribe.getCall(0).args[1] { name: 'panda' }, { }, { contentType: 'application/json' }, _ack
+                queue.subscribe.getCall(0).args[1]('msg', 'headers', 'info', 'ack')
 
             
