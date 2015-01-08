@@ -9,7 +9,7 @@ describe 'Ack', ->
         headers = {}
         info = { contentType: 'application/json' }
         _ack = { acknowledge: spy() }
-        ack = new Ack Q(exchange), msg, headers, info, _ack
+        ack = new Ack exchange, msg, headers, info, _ack
         
     describe '._mkopts()', ->
         
@@ -35,7 +35,6 @@ describe 'Ack', ->
             opts.headers.should.eql
                 retryCount: 23
 
-    
     describe '._msgbody()', ->
 
         it 'should return the msg if this it a plain javascript object', ->
@@ -48,6 +47,13 @@ describe 'Ack', ->
                 data: body
                 contentType: 'application/octet-stream'
             ack._msgbody(msg, 'application/octet-stream').should.eql body
+
+    describe '.acknowledge()', ->
+
+        it 'should call the underlying acknowledge() fn at most once', ->
+            ack.acknowledge()
+            ack.acknowledge()
+            _ack.acknowledge.should.have.been.calledOnce
 
     describe '.retry()', ->
 
@@ -62,10 +68,27 @@ describe 'Ack', ->
                 exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
                 _ack.acknowledge.should.have.been.calledOnce
 
+        it 'should not retry if acknowledge() has already been called', ->
+            ack.acknowledge()
+            ack.retry().then ->
+                _ack.acknowledge.should.have.been.calledOnce
+                exchange.publish.should.not.have.been.called
+
+        it 'should not fail if acknowledge() has already been called', ->
+            headers.retryCount = 3
+            ack.acknowledge()
+            ack.retry().then ->
+                exchange.publish.should.not.have.been.called
+
     describe '.fail()', ->
 
         it 'should queue the message as a failure', ->
-            msg.should.eql { name: 'panda' }
             ack.fail().then ->
                 exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
                 _ack.acknowledge.should.have.been.calledOnce
+
+        it 'should do nothing if acknowledge() has already been called', ->
+            ack.acknowledge()
+            ack.fail().then ->
+                _ack.acknowledge.should.have.been.calledOnce
+                exchange.publish.should.not.have.been.called

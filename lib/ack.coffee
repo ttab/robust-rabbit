@@ -1,8 +1,10 @@
 log = require 'bog'
+Q   = require 'q'
 
 module.exports = class Ack
 
     constructor: (@exchange, @msg, @headers, @info, @ack, @maxRetries=3) ->
+        @resolved = false
 
     _mkopts: (headers, info, retryCount) ->
         opts = {}
@@ -18,28 +20,31 @@ module.exports = class Ack
             msg.data
 
     acknowledge: =>
-        @ack.acknowledge()
+        unless @resolved
+            @ack.acknowledge()
+            @resolved = true
         
     retry: (messageId='<unknown>') =>
         rc = (@headers.retryCount || 0) + 1
-        @exchange.then (ex) =>
-            if rc <= @maxRetries
-                log.warn "retrying #{messageId}, retryCount=#{rc}"
-                ex.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
-                .then =>
-                    @ack.acknowledge()
-            else
-                log.warn "failing #{messageId}, too many retries (#{@maxRetries})"
-                ex.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
-                .then => @ack.acknowledge()
+        Q().then =>
+            unless @resolved
+                if rc <= @maxRetries
+                    log.warn "retrying #{messageId}, retryCount=#{rc}"
+                    @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
+                    .then @acknowledge
+                else
+                    log.warn "failing #{messageId}, too many retries (#{@maxRetries})"
+                    @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
+                    .then @acknowledge
         .fail (err) ->
             log.error err.stack
         
     fail: (messageId='<unknown>') =>
-        @exchange.then (ex) =>
-            log.warn "failing #{messageId}"
-            ex.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
-            .then => @ack.acknowledge() 
+        Q().then =>
+            unless @resolved
+                log.warn "failing #{messageId}"
+                @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
+                .then @acknowledge 
         .fail (err) ->
             log.error err.stack
             

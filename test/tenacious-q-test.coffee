@@ -39,12 +39,12 @@ describe 'TenaciousQ', ->
                     autoDelete: false
             
         it 'should use default options if none are given', ->
-            rm.subscribe ->
-            queue.subscribe.should.have.been.calledWith { ack: true, prefetchCount: 1}, match.func
+            rm.subscribe(->).then ->
+                queue.subscribe.should.have.been.calledWith { ack: true, prefetchCount: 1}, match.func
             
         it 'should use specified options, but set ack and prefixCount', ->
-            rm.subscribe { panda: 'cub' }, ->
-            queue.subscribe.should.have.been.calledWith { panda: 'cub', ack: true, prefetchCount: 1}, match.func
+            rm.subscribe({ panda: 'cub' }, ->).then ->
+                queue.subscribe.should.have.been.calledWith { panda: 'cub', ack: true, prefetchCount: 1}, match.func
 
         describe 'should call subscribe on the underlying queue', ->
             beforeEach ->
@@ -54,18 +54,19 @@ describe 'TenaciousQ', ->
             it 'with a callback that in turn will invoke the listener', (done) ->
                 listener = ->
                     done()
-                rm.subscribe listener
-                queue.subscribe.getCall(0).args[1]()
+                rm.subscribe(listener).then ->
+                    queue.subscribe.getCall(0).args[1]()
 
             it 'and when invoked, the listener should recieve an ack object', (done) ->
                 listener = (msg, headers, info, ack)->
+                    ack.exchange.should.equal exchange
                     ack.should.be.instanceOf Ack
                     ack.msg.should.equal 'msg'
                     ack.headers.should.equal 'headers'
                     ack.info.should.equal 'info'
                     ack.ack.should.equal 'ack'
                     done()
-                rm.subscribe listener
-                queue.subscribe.getCall(0).args[1]('msg', 'headers', 'info', 'ack')
+                rm.subscribe(listener).then ->
+                    queue.subscribe.getCall(0).args[1]('msg', 'headers', 'info', 'ack')
 
             

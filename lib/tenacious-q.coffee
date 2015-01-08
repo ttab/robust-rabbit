@@ -25,7 +25,6 @@ module.exports = class TenaciousQ
             failures.bind exname, 'fail'
         .fail (err) ->
             log.error err
-        .done()
 
     subscribe: (options, listener) =>
         if typeof options == 'function'
@@ -33,6 +32,9 @@ module.exports = class TenaciousQ
             options = {}
         options.ack = true
         options.prefetchCount = @prefetchCount
-        @queue.subscribe options, (msg, headers, info, ack) =>
-            listener msg, headers, info,
-                new Ack(@exchange, msg, headers, info, ack, @maxRetries)
+        @exchange.then (ex) =>
+            @queue.subscribe options, (msg, headers, info, ack) =>
+                listener msg, headers, info,
+                    new Ack(ex, msg, headers, info, ack, @maxRetries)
+        .fail (err) ->
+            log.error err
