@@ -10,9 +10,9 @@ describe 'Ack', ->
         info = { contentType: 'application/json' }
         _ack = { acknowledge: spy() }
         ack = new Ack exchange, msg, headers, info, _ack
-        
+
     describe '._mkopts()', ->
-        
+
         it 'should copy relevant headers from deliveryInfo', ->
             opts = ack._mkopts {}, {
                 contentType: 'text/panda',
@@ -40,7 +40,7 @@ describe 'Ack', ->
         it 'should return the msg if this it a plain javascript object', ->
             msg = { name: 'panda' }
             ack._msgbody(msg, 'application/json').should.eql msg
-        
+
         it 'should return the data part if it exists and is a Buffer', ->
             body = new Buffer('panda')
             msg =
@@ -58,37 +58,43 @@ describe 'Ack', ->
     describe '.retry()', ->
 
         it 'should queue the message for retry if allowed by retry count', ->
-            ack.retry().then ->
+            ack.retry().then (v) ->
                 exchange.publish.should.have.been.calledWith 'retry', msg, { contentType: 'application/json', headers: retryCount: 1 }
                 _ack.acknowledge.should.have.been.calledOnce
+                v.should.eql true
 
         it 'should queue the message as a failure if we have reached max number of retries', ->
             headers.retryCount = 3
-            ack.retry().then ->
+            ack.retry().then (v) ->
                 exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
                 _ack.acknowledge.should.have.been.calledOnce
+                v.should.eql false
 
         it 'should not retry if acknowledge() has already been called', ->
             ack.acknowledge()
-            ack.retry().then ->
+            ack.retry().then (v) ->
                 _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.not.have.been.called
+                expect(v).to.be.undefined
 
         it 'should not fail if acknowledge() has already been called', ->
             headers.retryCount = 3
             ack.acknowledge()
-            ack.retry().then ->
+            ack.retry().then (v) ->
                 exchange.publish.should.not.have.been.called
+                expect(v).to.be.undefined
 
     describe '.fail()', ->
 
         it 'should queue the message as a failure', ->
-            ack.fail().then ->
+            ack.fail().then (v) ->
                 exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
                 _ack.acknowledge.should.have.been.calledOnce
+                v.should.eql false
 
         it 'should do nothing if acknowledge() has already been called', ->
             ack.acknowledge()
-            ack.fail().then ->
+            ack.fail().then (v) ->
                 _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.not.have.been.called
+                expect(v).to.be.undefined

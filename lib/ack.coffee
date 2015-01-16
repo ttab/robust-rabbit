@@ -23,28 +23,27 @@ module.exports = class Ack
         unless @resolved
             @ack.acknowledge()
             @resolved = true
-        
-    retry: (messageId='<unknown>') =>
+
+    retry: =>
         rc = (@headers.retryCount || 0) + 1
         Q().then =>
             unless @resolved
                 if rc <= @maxRetries
-                    log.warn "retrying #{messageId}, retryCount=#{rc}"
                     @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                     .then @acknowledge
+                    .then true
                 else
-                    log.warn "failing #{messageId}, too many retries (#{@maxRetries})"
                     @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                     .then @acknowledge
+                    .then false
         .fail (err) ->
             log.error err.stack
-        
-    fail: (messageId='<unknown>') =>
+
+    fail: =>
         Q().then =>
             unless @resolved
-                log.warn "failing #{messageId}"
                 @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
-                .then @acknowledge 
+                .then @acknowledge
+                .then false
         .fail (err) ->
             log.error err.stack
-            
