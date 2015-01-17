@@ -31,11 +31,11 @@ module.exports = class Ack
                 if rc <= @maxRetries
                     @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                     .then @acknowledge
-                    .then true
+                    .then -> rc
                 else
                     @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                     .then @acknowledge
-                    .then false
+                    .then -> 0
         .fail (err) ->
             log.error err.stack
 
@@ -44,6 +44,6 @@ module.exports = class Ack
             unless @resolved
                 @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
                 .then @acknowledge
-                .then false
+                .then -> 0
         .fail (err) ->
             log.error err.stack

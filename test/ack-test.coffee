@@ -58,17 +58,18 @@ describe 'Ack', ->
     describe '.retry()', ->
 
         it 'should queue the message for retry if allowed by retry count', ->
+            headers.retryCount = 1
             ack.retry().then (v) ->
-                exchange.publish.should.have.been.calledWith 'retry', msg, { contentType: 'application/json', headers: retryCount: 1 }
+                exchange.publish.should.have.been.calledWith 'retry', msg, { contentType: 'application/json', headers: retryCount: 2 }
                 _ack.acknowledge.should.have.been.calledOnce
-                v.should.eql true
+                v.should.eql 2
 
         it 'should queue the message as a failure if we have reached max number of retries', ->
             headers.retryCount = 3
             ack.retry().then (v) ->
                 exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
                 _ack.acknowledge.should.have.been.calledOnce
-                v.should.eql false
+                v.should.eql 0
 
         it 'should not retry if acknowledge() has already been called', ->
             ack.acknowledge()
@@ -90,7 +91,7 @@ describe 'Ack', ->
             ack.fail().then (v) ->
                 exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
                 _ack.acknowledge.should.have.been.calledOnce
-                v.should.eql false
+                v.should.eql 0
 
         it 'should do nothing if acknowledge() has already been called', ->
             ack.acknowledge()
