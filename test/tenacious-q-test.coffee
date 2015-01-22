@@ -3,13 +3,13 @@ TenaciousQ = require '../lib/tenacious-q'
 Ack        = require '../lib/ack'
 
 describe 'TenaciousQ', ->
-    
+
     describe '.subscribe()', ->
         rm = queue = exchange = amqpc = undefined
 
         beforeEach ->
             exchange = publish: stub().returns Q()
-            
+
             amqpc =
                 queue: stub().returns Q { bind: -> }
                 exchange: stub().returns Q exchange
@@ -17,7 +17,7 @@ describe 'TenaciousQ', ->
             queue =
                 name: 'test'
                 subscribe: spy()
-            rm = new TenaciousQ amqpc, queue
+            TenaciousQ(amqpc, queue).then (_rm) -> rm = _rm
 
         it 'should use the default exchange', ->
             amqpc.exchange.should.have.been.calledWith 'test-flow', { autoDelete: true, confirm: true }
@@ -31,17 +31,17 @@ describe 'TenaciousQ', ->
                         'x-message-ttl': 60000
                         'x-dead-letter-exchange': '',
                         'x-dead-letter-routing-key': 'test'
-    
+
         it 'should set up a failures queue', ->
             rm.exchange.then ->
                 amqpc.queue.should.have.been.calledWith 'test-failures',
                     durable: true
                     autoDelete: false
-            
+
         it 'should use default options if none are given', ->
             rm.subscribe(->).then ->
                 queue.subscribe.should.have.been.calledWith { ack: true, prefetchCount: 1}, match.func
-            
+
         it 'should use specified options, but set ack and prefixCount', ->
             rm.subscribe({ panda: 'cub' }, ->).then ->
                 queue.subscribe.should.have.been.calledWith { panda: 'cub', ack: true, prefetchCount: 1}, match.func
@@ -49,8 +49,8 @@ describe 'TenaciousQ', ->
         describe 'should call subscribe on the underlying queue', ->
             beforeEach ->
                 queue.subscribe = spy()
-                rm = new TenaciousQ amqpc, queue
-                
+                TenaciousQ(amqpc, queue).then (_rm) -> rm = _rm
+
             it 'with a callback that in turn will invoke the listener', (done) ->
                 listener = ->
                     done()
@@ -68,5 +68,3 @@ describe 'TenaciousQ', ->
                     done()
                 rm.subscribe(listener).then ->
                     queue.subscribe.getCall(0).args[1]('msg', 'headers', 'info', 'ack')
-
-            

@@ -2,8 +2,8 @@ Q   = require 'q'
 Ack = require './ack'
 log = require 'bog'
 
-module.exports = class TenaciousQ
-    
+class TenaciousQ
+
     constructor: (@amqpc, @queue, retryDelay=60000, @maxRetries=3, @prefetchCount=1) ->
         qname = queue.name
         exname = "#{qname}-flow"
@@ -38,3 +38,7 @@ module.exports = class TenaciousQ
                     new Ack(ex, msg, headers, info, ack, @maxRetries)
         .fail (err) ->
             log.error err
+
+module.exports = (amqpc, queue, retryDelay, maxRetries, prefetchCount) ->
+    q = new TenaciousQ(amqpc, queue, retryDelay, maxRetries, prefetchCount)
+    q.exchange.then -> q
