@@ -4,7 +4,11 @@ log = require 'bog'
 
 class TenaciousQ
 
-    constructor: (@amqpc, @queue, retryDelay=60000, @maxRetries=3, @prefetchCount=1) ->
+    constructor: (@amqpc, @queue, options={}) ->
+        @retryDelay = (options.retry?.delay or 10) * 1000
+        @maxRetries = (options.retry?.max or 60) * 1000 / @retryDelay
+        @prefetchCount = options.prefetchCount or 1
+        
         qname = queue.name
         exname = "#{qname}-flow"
         @exchange = @amqpc.exchange exname, { autoDelete: true, confirm: true }
@@ -13,7 +17,7 @@ class TenaciousQ
                 durable: true
                 autoDelete: false
                 arguments:
-                    'x-message-ttl': retryDelay
+                    'x-message-ttl': @retryDelay
                     'x-dead-letter-exchange': '',
                     'x-dead-letter-routing-key': qname
             @amqpc.queue "#{qname}-failures",
@@ -30,7 +34,7 @@ class TenaciousQ
         Q.fcall listener, msg, headers, info, ack
         .then ->
             ack.acknowledge()
-        .fail ->
+        .fail (err) ->
             ack.retry()
             log.error "#{@queue} error", (if err.stack then err.stack else err)
             
@@ -46,6 +50,6 @@ class TenaciousQ
         .fail (err) ->
             log.error err
 
-module.exports = (amqpc, queue, retryDelay, maxRetries, prefetchCount) ->
-    q = new TenaciousQ(amqpc, queue, retryDelay, maxRetries, prefetchCount)
+module.exports = (amqpc, queue, options) ->
+    q = new TenaciousQ(amqpc, queue, options)
     q.exchange.then -> q

@@ -17,6 +17,14 @@ describe 'TenaciousQ', ->
             subscribe: spy()
         TenaciousQ(amqpc, queue).then (_tq) -> tq = _tq
 
+    describe '.constructor()', ->
+
+        it 'should parse the options object', ->
+            TenaciousQ(amqpc, queue, { retry: { delay: 15, max: 60 }, prefetchCount: 7 }).then (tq) ->
+                tq.retryDelay.should.equal 15000
+                tq.maxRetries.should.equal 4
+                tq.prefetchCount.should.equal 7
+                
     describe '._listen()', ->
         listener = msg = headers = info = ack = undefined
         beforeEach ->
@@ -57,7 +65,7 @@ describe 'TenaciousQ', ->
                     durable: true
                     autoDelete: false
                     arguments:
-                        'x-message-ttl': 60000
+                        'x-message-ttl': 10000
                         'x-dead-letter-exchange': '',
                         'x-dead-letter-routing-key': 'test'
 
@@ -71,7 +79,7 @@ describe 'TenaciousQ', ->
             tq.subscribe(->).then ->
                 queue.subscribe.should.have.been.calledWith { ack: true, prefetchCount: 1}, match.func
 
-        it 'should use specified options, but set ack and prefixCount', ->
+        it 'should use specified options, but set ack and prefetchCount', ->
             tq.subscribe({ panda: 'cub' }, ->).then ->
                 queue.subscribe.should.have.been.calledWith { panda: 'cub', ack: true, prefetchCount: 1}, match.func
 
