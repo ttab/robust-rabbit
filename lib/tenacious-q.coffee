@@ -26,6 +26,14 @@ class TenaciousQ
         .fail (err) ->
             log.error err
 
+    _listen: (listener, msg, headers, info, ack) ->
+        Q.fcall listener, msg, headers, info, ack
+        .then ->
+            ack.acknowledge()
+        .fail ->
+            ack.retry()
+            log.error "#{@queue} error", (if err.stack then err.stack else err)
+            
     subscribe: (options, listener) =>
         if typeof options == 'function'
             listener = options
@@ -34,8 +42,7 @@ class TenaciousQ
         options.prefetchCount = @prefetchCount
         @exchange.then (ex) =>
             @queue.subscribe options, (msg, headers, info, ack) =>
-                listener msg, headers, info,
-                    new Ack(ex, msg, headers, info, ack, @maxRetries)
+                @_listen listener, msg, headers, info, new Ack(ex, msg, headers, info, ack, @maxRetries)
         .fail (err) ->
             log.error err
 

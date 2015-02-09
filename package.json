@@ -4,7 +4,7 @@
   "author": "Fredrik Appelberg <fredrik.appelberg@tt.se>",
   "license": "MIT",
   "description": "",
-  "main": "lib/index.coffee",
+  "main": "lib/tenacious-q.coffee",
   "scripts": {
     "test": "mocha"
   },
