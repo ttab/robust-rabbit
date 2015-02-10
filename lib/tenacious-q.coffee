@@ -8,8 +8,8 @@ class TenaciousQ
         @retryDelay = (options.retry?.delay or 10) * 1000
         @maxRetries = (options.retry?.max or 60) * 1000 / @retryDelay
         @prefetchCount = options.prefetchCount or 1
-        
-        qname = queue.name
+
+        qname = @queue.name
         exname = "#{qname}-flow"
         @exchange = @amqpc.exchange exname, { autoDelete: true, confirm: true }
         @exchange.then => [
