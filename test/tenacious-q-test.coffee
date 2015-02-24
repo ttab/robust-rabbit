@@ -92,7 +92,7 @@ describe 'TenaciousQ', ->
                 listener = ->
                     done()
                 tq.subscribe(listener).then ->
-                    queue.subscribe.getCall(0).args[1]()
+                    queue.subscribe.getCall(0).args[1](undefined, undefined, undefined, { acknowledge: -> })
 
             it 'and when invoked, the listener should recieve an ack object', (done) ->
                 listener = (msg, headers, info, ack)->
@@ -101,7 +101,7 @@ describe 'TenaciousQ', ->
                     ack.msg.should.equal 'msg'
                     ack.headers.should.equal 'headers'
                     ack.info.should.equal 'info'
-                    ack.ack.should.equal 'ack'
+                    ack.ack.should.have.property 'acknowledge'
                     done()
                 tq.subscribe(listener).then ->
-                    queue.subscribe.getCall(0).args[1]('msg', 'headers', 'info', 'ack')
+                    queue.subscribe.getCall(0).args[1]('msg', 'headers', 'info', { acknowledge: -> })
