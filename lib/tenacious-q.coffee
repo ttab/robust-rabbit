@@ -9,18 +9,18 @@ class TenaciousQ
         @maxRetries = (options.retry?.max or 60) * 1000 / @retryDelay
         @prefetchCount = options.prefetchCount or 1
 
-        qname = @queue.name
-        exname = "#{qname}-flow"
+        @qname = @queue.name
+        exname = "#{@qname}-flow"
         @exchange = @amqpc.exchange exname, { autoDelete: true, confirm: true }
         @exchange.then => [
-            @amqpc.queue "#{qname}-retries",
+            @amqpc.queue "#{@qname}-retries",
                 durable: true
                 autoDelete: false
                 arguments:
                     'x-message-ttl': @retryDelay
                     'x-dead-letter-exchange': '',
-                    'x-dead-letter-routing-key': qname
-            @amqpc.queue "#{qname}-failures",
+                    'x-dead-letter-routing-key': @qname
+            @amqpc.queue "#{@qname}-failures",
                 durable: true
                 autoDelete: false
             ]
@@ -34,9 +34,9 @@ class TenaciousQ
         Q.fcall listener, msg, headers, info, ack
         .then ->
             ack.acknowledge()
-        .fail (err) ->
+        .fail (err) =>
             ack.retry()
-            log.error "#{@queue} error", (if err.stack then err.stack else err)
+            log.error "#{@qname} error" # , (if err.stack then err.stack else err)
             
     subscribe: (options, listener) =>
         if typeof options == 'function'
