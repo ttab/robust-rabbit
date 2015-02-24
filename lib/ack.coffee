@@ -24,28 +24,26 @@ module.exports = class Ack
             Q()
         else
             @resolved = true
-            Q.fcall(fn).fail (err) ->
-                console.log err
+            Q.fcall(fn)
+            .then (res) =>
+                @ack.acknowledge()
+                return res
+            .fail (err) ->
                 log.error err.stack
 
-    acknowledge: =>
-        @_unlessResolved =>
-            @ack.acknowledge()
-
+    acknowledge: => @_unlessResolved ->
+            
     retry: =>
         @_unlessResolved =>
             rc = (@headers.retryCount || 0) + 1
             if rc <= @maxRetries
                 @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
-                .then => @ack.acknowledge()
                 .then -> rc
             else
                 @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
-                .then => @ack.acknowledge()
                 .then -> 0
 
     fail: =>
         @_unlessResolved =>
             @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
-            .then => @ack.acknowledge()
             .then -> 0

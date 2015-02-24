@@ -75,18 +75,18 @@ describe 'Ack', ->
                 v.should.eql 0
 
         it 'should not retry if acknowledge() has already been called', ->
-            ack.acknowledge()
-            ack.retry().then (v) ->
-                _ack.acknowledge.should.have.been.calledOnce
-                exchange.publish.should.not.have.been.called
-                expect(v).to.be.undefined
+            ack.acknowledge().then ->
+                ack.retry().then (v) ->
+                    _ack.acknowledge.should.have.been.calledOnce
+                    exchange.publish.should.not.have.been.called
+                    expect(v).to.be.undefined
 
         it 'should not fail if acknowledge() has already been called', ->
             headers.retryCount = 3
-            ack.acknowledge()
-            ack.retry().then (v) ->
-                exchange.publish.should.not.have.been.called
-                expect(v).to.be.undefined
+            ack.acknowledge().then ->
+                ack.retry().then (v) ->
+                    exchange.publish.should.not.have.been.called
+                    expect(v).to.be.undefined
 
         it 'should not be possible to retry many times in a row', ->
             Q.all [
@@ -97,6 +97,7 @@ describe 'Ack', ->
                 ack.retry()
             ]
             .then ->
+                _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.have.been.calledOnce
             
     describe '.fail()', ->
@@ -108,11 +109,11 @@ describe 'Ack', ->
                 v.should.eql 0
 
         it 'should do nothing if acknowledge() has already been called', ->
-            ack.acknowledge()
-            ack.fail().then (v) ->
-                _ack.acknowledge.should.have.been.calledOnce
-                exchange.publish.should.not.have.been.called
-                expect(v).to.be.undefined
+            ack.acknowledge().then ->
+                ack.fail().then (v) ->
+                    _ack.acknowledge.should.have.been.calledOnce
+                    exchange.publish.should.not.have.been.called
+                    expect(v).to.be.undefined
 
         it 'should not be possible to fail many times in a row', ->
             Q.all [
@@ -123,4 +124,5 @@ describe 'Ack', ->
                 ack.fail()
             ]
             .then ->
+                _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.have.been.calledOnce
