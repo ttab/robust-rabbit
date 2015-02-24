@@ -51,9 +51,12 @@ describe 'Ack', ->
     describe '.acknowledge()', ->
 
         it 'should call the underlying acknowledge() fn at most once', ->
-            ack.acknowledge()
-            ack.acknowledge()
-            _ack.acknowledge.should.have.been.calledOnce
+            Q.all [
+                ack.acknowledge()
+                ack.acknowledge()
+            ]
+            .then ->
+                _ack.acknowledge.should.have.been.calledOnce
 
     describe '.retry()', ->
 
@@ -85,6 +88,17 @@ describe 'Ack', ->
                 exchange.publish.should.not.have.been.called
                 expect(v).to.be.undefined
 
+        it 'should not be possible to retry many times in a row', ->
+            Q.all [
+                ack.retry()
+                ack.retry()
+                ack.retry()
+                ack.retry()
+                ack.retry()
+            ]
+            .then ->
+                exchange.publish.should.have.been.calledOnce
+            
     describe '.fail()', ->
 
         it 'should queue the message as a failure', ->
@@ -99,3 +113,14 @@ describe 'Ack', ->
                 _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.not.have.been.called
                 expect(v).to.be.undefined
+
+        it 'should not be possible to fail many times in a row', ->
+            Q.all [
+                ack.fail()
+                ack.fail()
+                ack.fail()
+                ack.fail()
+                ack.fail()
+            ]
+            .then ->
+                exchange.publish.should.have.been.calledOnce

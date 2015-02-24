@@ -19,31 +19,33 @@ module.exports = class Ack
         else
             msg.data
 
-    acknowledge: =>
-        unless @resolved
-            @ack.acknowledge()
+    _unlessResolved: (fn) =>
+        if @resolved
+            Q()
+        else
             @resolved = true
+            Q.fcall(fn).fail (err) ->
+                console.log err
+                log.error err.stack
+
+    acknowledge: =>
+        @_unlessResolved =>
+            @ack.acknowledge()
 
     retry: =>
-        rc = (@headers.retryCount || 0) + 1
-        Q().then =>
-            unless @resolved
-                if rc <= @maxRetries
-                    @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
-                    .then @acknowledge
-                    .then -> rc
-                else
-                    @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
-                    .then @acknowledge
-                    .then -> 0
-        .fail (err) ->
-            log.error err.stack
+        @_unlessResolved =>
+            rc = (@headers.retryCount || 0) + 1
+            if rc <= @maxRetries
+                @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
+                .then => @ack.acknowledge()
+                .then -> rc
+            else
+                @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
+                .then => @ack.acknowledge()
+                .then -> 0
 
     fail: =>
-        Q().then =>
-            unless @resolved
-                @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
-                .then @acknowledge
-                .then -> 0
-        .fail (err) ->
-            log.error err.stack
+        @_unlessResolved =>
+            @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
+            .then => @ack.acknowledge()
+            .then -> 0
