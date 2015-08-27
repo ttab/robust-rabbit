@@ -31,13 +31,14 @@ class TenaciousQ
             log.error err
 
     _listen: (listener, msg, headers, info, ack) ->
-        Q.fcall listener, msg, headers, info, ack
+        ret = null
+        Q.fcall -> ret = listener msg, headers, info, ack
         .then ->
-            ack.acknowledge()
+            ack.acknowledge() if Q.isPromiseAlike(ret)
         .fail (err) =>
             ack.retry()
             log.error "#{@qname} error" # , (if err.stack then err.stack else err)
-            
+
     subscribe: (options, listener) =>
         if typeof options == 'function'
             listener = options

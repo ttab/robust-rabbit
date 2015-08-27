@@ -24,7 +24,7 @@ describe 'TenaciousQ', ->
                 tq.retryDelay.should.equal 15000
                 tq.maxRetries.should.equal 4
                 tq.prefetchCount.should.equal 7
-                
+
     describe '._listen()', ->
         listener = msg = headers = info = ack = undefined
         beforeEach ->
@@ -33,7 +33,7 @@ describe 'TenaciousQ', ->
             headers = {}
             info = {}
             ack = { acknowledge: spy(), retry: spy(), fail: spy() }
-            
+
         it 'should invoke the listener', ->
             tq._listen listener, msg, headers, info, ack
             .then ->
@@ -53,7 +53,25 @@ describe 'TenaciousQ', ->
                 ack.retry.should.have.been.calledOnce
                 ack.acknowledge.should.not.have.been.called
                 ack.fail.should.not.have.been.called
-            
+
+        describe 'when listener doesnt return a promise', ->
+
+            it 'should damn well NOT ack.acknowledge', ->
+                listener = -> undefined
+                tq._listen listener, msg, headers, info, ack
+                .then ->
+                    ack.acknowledge.should.not.have.been.called
+                    ack.retry.should.not.have.been.called
+                    ack.fail.should.not.have.been.called
+
+            it 'should however retry on fail', ->
+                listener = -> throw 'Bad bad'
+                tq._listen listener, msg, headers, info, ack
+                .then ->
+                    ack.retry.should.have.been.called #!
+                    ack.acknowledge.should.not.have.been.calledOnce
+                    ack.fail.should.not.have.been.called
+
     describe '.subscribe()', ->
 
         it 'should use the default exchange', ->
