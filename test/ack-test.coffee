@@ -73,9 +73,10 @@ describe 'Ack', ->
                 v.should.eql 2
 
         it 'should queue the message as a failure if we have reached max number of retries', ->
+            spy ack, '_mkopts'
             headers.retryCount = 3
             ack.retry().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: 1440, headers: retryCount: 4 }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 
@@ -108,8 +109,9 @@ describe 'Ack', ->
     describe '.fail()', ->
 
         it 'should queue the message as a failure', ->
+            spy ack, '_mkopts'
             ack.fail().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: 1440, headers: { retryCount: 0 } }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 

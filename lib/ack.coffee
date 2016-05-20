@@ -33,7 +33,7 @@ module.exports = class Ack
                 log.error err.stack
 
     acknowledge: => @_unlessResolved ->
-            
+
     retry: =>
         @_unlessResolved =>
             rc = (@headers.retryCount || 0) + 1
@@ -41,10 +41,10 @@ module.exports = class Ack
                 @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                 .then -> rc
             else
-                @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
+                @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc, true)
                 .then -> 0
 
     fail: =>
         @_unlessResolved =>
-            @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
+            @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0, true)
             .then -> 0
