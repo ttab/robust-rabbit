@@ -11,7 +11,7 @@ module.exports = class Ack
         (opts[key] = val for key, val of info when key in ['contentType', 'contentEncoding'])
         opts.headers = headers || {}
         opts.headers.retryCount = retryCount
-        opts.expiration = @failureExpiration if failure
+        opts.expiration = "#{@failureExpiration}" if failure
         opts
 
     _msgbody: (msg, contentType) ->

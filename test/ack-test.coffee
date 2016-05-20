@@ -38,7 +38,7 @@ describe 'Ack', ->
 
         it 'sets expiration for failures', ->
             opts = ack._mkopts undefined, {}, 23, true
-            opts.should.have.property 'expiration', 1440
+            opts.should.have.property 'expiration', '1440'
 
     describe '._msgbody()', ->
 
@@ -76,7 +76,7 @@ describe 'Ack', ->
             spy ack, '_mkopts'
             headers.retryCount = 3
             ack.retry().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: 1440, headers: retryCount: 4 }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: "1440", headers: retryCount: 4 }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 
@@ -111,7 +111,7 @@ describe 'Ack', ->
         it 'should queue the message as a failure', ->
             spy ack, '_mkopts'
             ack.fail().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: 1440, headers: { retryCount: 0 } }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: "1440", headers: { retryCount: 0 } }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 
