@@ -20,13 +20,9 @@ describe 'TenaciousQ', ->
     describe '.constructor()', ->
 
         it 'should parse the options object', ->
-            TenaciousQ(amqpc, queue, {
-                    retry: { delay: 15, max: 60 },
-                    failure: { expiration: 60 }
-                    prefetchCount: 7 }).then (tq) ->
+            TenaciousQ(amqpc, queue, { retry: { delay: 15, max: 60 }, prefetchCount: 7 }).then (tq) ->
                 tq.retryDelay.should.equal 15000
                 tq.maxRetries.should.equal 4
-                tq.failureExpiration.should.equal 60000
                 tq.prefetchCount.should.equal 7
 
     describe '._listen()', ->

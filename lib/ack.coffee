@@ -3,15 +3,14 @@ Q   = require 'q'
 
 module.exports = class Ack
 
-    constructor: (@exchange, @msg, @headers, @info, @ack, @maxRetries, @failureExpiration) ->
+    constructor: (@exchange, @msg, @headers, @info, @ack, @maxRetries=3) ->
         @resolved = false
 
-    _mkopts: (headers, info, retryCount, failure=false) ->
+    _mkopts: (headers, info, retryCount) ->
         opts = {}
         (opts[key] = val for key, val of info when key in ['contentType', 'contentEncoding'])
         opts.headers = headers || {}
         opts.headers.retryCount = retryCount
-        opts.expiration = "#{@failureExpiration}" if failure
         opts
 
     _msgbody: (msg, contentType) ->
@@ -33,7 +32,7 @@ module.exports = class Ack
                 log.error err.stack
 
     acknowledge: => @_unlessResolved ->
-
+            
     retry: =>
         @_unlessResolved =>
             rc = (@headers.retryCount || 0) + 1
@@ -41,10 +40,10 @@ module.exports = class Ack
                 @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                 .then -> rc
             else
-                @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc, true)
+                @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                 .then -> 0
 
     fail: =>
         @_unlessResolved =>
-            @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0, true)
+            @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
             .then -> 0

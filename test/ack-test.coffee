@@ -9,7 +9,7 @@ describe 'Ack', ->
         headers = {}
         info = { contentType: 'application/json' }
         _ack = { acknowledge: spy() }
-        ack = new Ack exchange, msg, headers, info, _ack, 3, 1440
+        ack = new Ack exchange, msg, headers, info, _ack
 
     describe '._mkopts()', ->
 
@@ -21,7 +21,6 @@ describe 'Ack', ->
             opts.should.have.property 'contentType', 'text/panda'
             opts.should.have.property 'contentEncoding', 'us-ascii'
             opts.should.not.have.property 'myHeader'
-            opts.should.not.have.property 'expiration'
 
         it 'should copy existing headers, and add a retryCount', ->
             opts = ack._mkopts { panda: 'cub' }, {}, 23
@@ -35,10 +34,6 @@ describe 'Ack', ->
             opts.should.have.property 'headers'
             opts.headers.should.eql
                 retryCount: 23
-
-        it 'sets expiration for failures', ->
-            opts = ack._mkopts undefined, {}, 23, true
-            opts.should.have.property 'expiration', '1440'
 
     describe '._msgbody()', ->
 
@@ -73,10 +68,9 @@ describe 'Ack', ->
                 v.should.eql 2
 
         it 'should queue the message as a failure if we have reached max number of retries', ->
-            spy ack, '_mkopts'
             headers.retryCount = 3
             ack.retry().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: "1440", headers: retryCount: 4 }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 
@@ -105,13 +99,12 @@ describe 'Ack', ->
             .then ->
                 _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.have.been.calledOnce
-
+            
     describe '.fail()', ->
 
         it 'should queue the message as a failure', ->
-            spy ack, '_mkopts'
             ack.fail().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', expiration: "1440", headers: { retryCount: 0 } }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 
