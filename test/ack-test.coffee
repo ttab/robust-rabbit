@@ -9,7 +9,7 @@ describe 'Ack', ->
         headers = {}
         info = { contentType: 'application/json' }
         _ack = { acknowledge: spy() }
-        ack = new Ack exchange, msg, headers, info, _ack
+        ack = new Ack exchange, msg, headers, info, _ack, 3, 1440
 
     describe '._mkopts()', ->
 
@@ -21,6 +21,7 @@ describe 'Ack', ->
             opts.should.have.property 'contentType', 'text/panda'
             opts.should.have.property 'contentEncoding', 'us-ascii'
             opts.should.not.have.property 'myHeader'
+            opts.should.not.have.property 'expiration'
 
         it 'should copy existing headers, and add a retryCount', ->
             opts = ack._mkopts { panda: 'cub' }, {}, 23
@@ -34,6 +35,10 @@ describe 'Ack', ->
             opts.should.have.property 'headers'
             opts.headers.should.eql
                 retryCount: 23
+
+        it 'sets expiration for failures', ->
+            opts = ack._mkopts undefined, {}, 23, true
+            opts.should.have.property 'expiration', 1440
 
     describe '._msgbody()', ->
 
@@ -99,7 +104,7 @@ describe 'Ack', ->
             .then ->
                 _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.have.been.calledOnce
-            
+
     describe '.fail()', ->
 
         it 'should queue the message as a failure', ->

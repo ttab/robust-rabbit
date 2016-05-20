@@ -3,14 +3,15 @@ Q   = require 'q'
 
 module.exports = class Ack
 
-    constructor: (@exchange, @msg, @headers, @info, @ack, @maxRetries=3) ->
+    constructor: (@exchange, @msg, @headers, @info, @ack, @maxRetries, @failureExpiration) ->
         @resolved = false
 
-    _mkopts: (headers, info, retryCount) ->
+    _mkopts: (headers, info, retryCount, failure=false) ->
         opts = {}
         (opts[key] = val for key, val of info when key in ['contentType', 'contentEncoding'])
         opts.headers = headers || {}
         opts.headers.retryCount = retryCount
+        opts.expiration = @failureExpiration if failure
         opts
 
     _msgbody: (msg, contentType) ->

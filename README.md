@@ -28,6 +28,9 @@ eventually end up in a `fail queue`.
     + `max` - the maximum time to wait (again, seconds not
       milliseconds) before giving up on retrying a message. The
       default is 1 minutes.
+  * `failure`
+    + `expiration` - the maximum time (in seconds) a failed message
+      will spend in the failure queue before being purged.
   * `prefetchCount` - the number of messages to process in parallell. The
     default is 1.
 
