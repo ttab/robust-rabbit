@@ -8,7 +8,7 @@ module.exports = class Ack
 
     _mkopts: (headers, info, retryCount) ->
         opts = {}
-        (opts[key] = val for key, val of info when key in ['contentType', 'contentEncoding'])
+        (opts[key] = val for key, val of info when key in ['contentType', 'contentEncoding', 'deliveryMode'])
         opts.headers = headers || {}
         opts.headers.retryCount = retryCount
         opts
@@ -32,7 +32,7 @@ module.exports = class Ack
                 log.error err.stack
 
     acknowledge: => @_unlessResolved ->
-            
+
     retry: =>
         @_unlessResolved =>
             rc = (@headers.retryCount || 0) + 1

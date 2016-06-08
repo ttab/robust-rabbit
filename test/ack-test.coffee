@@ -15,9 +15,11 @@ describe 'Ack', ->
 
         it 'should copy relevant headers from deliveryInfo', ->
             opts = ack._mkopts {}, {
-                contentType: 'text/panda',
-                contentEncoding: 'us-ascii',
-                myHeader: 'myValue' }
+                deliveryMode    : 2
+                contentType     : 'text/panda',
+                contentEncoding : 'us-ascii',
+                myHeader        : 'myValue' }
+            opts.should.have.property 'deliveryMode', 2
             opts.should.have.property 'contentType', 'text/panda'
             opts.should.have.property 'contentEncoding', 'us-ascii'
             opts.should.not.have.property 'myHeader'
@@ -99,7 +101,7 @@ describe 'Ack', ->
             .then ->
                 _ack.acknowledge.should.have.been.calledOnce
                 exchange.publish.should.have.been.calledOnce
-            
+
     describe '.fail()', ->
 
         it 'should queue the message as a failure', ->
