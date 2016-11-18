@@ -11,7 +11,7 @@ class TenaciousQ
         @qname = @queue.name
         exname = "#{@qname}-flow"
         @exchange = @amqpc.exchange exname, { autoDelete: true, confirm: true }
-        @exchange.then => [
+        @exchange.then => Promise.all [
             @amqpc.queue "#{@qname}-retries",
                 durable: true
                 autoDelete: false
