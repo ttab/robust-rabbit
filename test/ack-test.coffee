@@ -1,10 +1,9 @@
-Q = require 'q'
 Ack = require '../lib/ack'
 
 describe 'Ack', ->
     exchange = msg = info = headers = ack = _ack = undefined
     beforeEach ->
-        exchange = { publish: stub().returns Q() }
+        exchange = { publish: stub().returns Promise.resolve() }
         msg = { name: 'panda' }
         headers = {}
         info = { contentType: 'application/json' }
@@ -53,7 +52,7 @@ describe 'Ack', ->
     describe '.acknowledge()', ->
 
         it 'should call the underlying acknowledge() fn at most once', ->
-            Q.all [
+            Promise.all [
                 ack.acknowledge()
                 ack.acknowledge()
             ]
@@ -91,7 +90,7 @@ describe 'Ack', ->
                     expect(v).to.be.undefined
 
         it 'should not be possible to retry many times in a row', ->
-            Q.all [
+            Promise.all [
                 ack.retry()
                 ack.retry()
                 ack.retry()
@@ -118,7 +117,7 @@ describe 'Ack', ->
                     expect(v).to.be.undefined
 
         it 'should not be possible to fail many times in a row', ->
-            Q.all [
+            Promise.all [
                 ack.fail()
                 ack.fail()
                 ack.fail()

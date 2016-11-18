@@ -1,4 +1,3 @@
-Q   = require 'q'
 Ack = require './ack'
 log = require 'bog'
 
@@ -24,18 +23,19 @@ class TenaciousQ
                 durable: true
                 autoDelete: false
             ]
-        .spread (retries, failures) ->
+        .then ([retries, failures]) ->
             retries.bind exname, 'retry'
             failures.bind exname, 'fail'
-        .fail (err) ->
+        .catch (err) ->
             log.error err
 
     _listen: (listener, msg, headers, info, ack) ->
         ret = null
-        Q.fcall -> ret = listener msg, headers, info, ack
+        Promise.resolve().then ->
+            ret = listener msg, headers, info, ack
         .then ->
-            ack.acknowledge() if Q.isPromiseAlike(ret)
-        .fail (err) =>
+            ack.acknowledge() if ret?.then
+        .catch (err) =>
             ack.retry()
             log.error "#{@qname} error" # , (if err.stack then err.stack else err)
 
@@ -48,7 +48,7 @@ class TenaciousQ
         @exchange.then (ex) =>
             @queue.subscribe options, (msg, headers, info, ack) =>
                 @_listen listener, msg, headers, info, new Ack(ex, msg, headers, info, ack, @maxRetries)
-        .fail (err) ->
+        .catch (err) ->
             log.error err
 
 module.exports = (amqpc, queue, options) ->

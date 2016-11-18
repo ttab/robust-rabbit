@@ -1,4 +1,3 @@
-Q          = require 'q'
 TenaciousQ = require '../lib/tenacious-q'
 Ack        = require '../lib/ack'
 
@@ -6,11 +5,11 @@ describe 'TenaciousQ', ->
     tq = queue = exchange = amqpc = undefined
 
     beforeEach ->
-        exchange = publish: stub().returns Q()
+        exchange = publish: stub().returns Promise.resolve()
 
         amqpc =
-            queue: stub().returns Q { bind: -> }
-            exchange: stub().returns Q exchange
+            queue: stub().returns Promise.resolve { bind: -> }
+            exchange: stub().returns Promise.resolve exchange
 
         queue =
             name: 'test'
@@ -28,7 +27,7 @@ describe 'TenaciousQ', ->
     describe '._listen()', ->
         listener = msg = headers = info = ack = undefined
         beforeEach ->
-            listener = stub().returns Q()
+            listener = stub().returns Promise.resolve()
             msg = {}
             headers = {}
             info = {}

@@ -1,5 +1,4 @@
 log = require 'bog'
-Q   = require 'q'
 
 module.exports = class Ack
 
@@ -21,14 +20,15 @@ module.exports = class Ack
 
     _unlessResolved: (fn) =>
         if @resolved
-            Q()
+            Promise.resolve()
         else
             @resolved = true
-            Q.fcall(fn)
+            Promise.resolve().then ->
+                fn()
             .then (res) =>
                 @ack.acknowledge()
                 return res
-            .fail (err) ->
+            .catch (err) ->
                 log.error err.stack
 
     acknowledge: => @_unlessResolved ->
