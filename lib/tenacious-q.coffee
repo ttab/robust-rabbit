@@ -37,7 +37,7 @@ class TenaciousQ
             ack.acknowledge() if ret?.then
         .catch (err) =>
             ack.retry()
-            log.error "#{@qname} error" # , (if err.stack then err.stack else err)
+            log.error "#{@qname} error", (if err.stack then err.stack else err)
 
     subscribe: (options, listener) =>
         if typeof options == 'function'
