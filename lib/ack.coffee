@@ -46,8 +46,5 @@ module.exports = class Ack
 
     fail: =>
         @_unlessResolved =>
-            console.log @msg instanceof Buffer
-            console.log typeof @msg
-            console.log @info.contentType
             @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers['tq-retry-count'] || 0)
             .then -> 0

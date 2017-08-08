@@ -77,7 +77,7 @@ describe 'TenaciousQ', ->
                     ack.fail.should.not.have.been.called
 
             it 'should however retry on fail', ->
-                listener = -> throw 'Bad bad'
+                listener = -> throw new Error 'Bad bad'
                 tq._listen listener, msg, headers, info, ack
                 .then ->
                     ack.retry.should.have.been.called #!
@@ -125,7 +125,7 @@ describe 'TenaciousQ', ->
                     queue.subscribe.getCall(0).args[1]({}, {}, {}, { acknowledge: -> })
 
             it 'and when invoked, the listener should recieve an ack object', (done) ->
-                listener = (msg, headers, info, ack)->
+                listener = (msg, headers, info, ack) ->
                     ack.exchange.should.equal exchange
                     ack.should.be.instanceOf Ack
                     ack.msg.should.equal 'msg'
