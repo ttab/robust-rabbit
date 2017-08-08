@@ -9,7 +9,7 @@ module.exports = class Ack
         opts = {}
         (opts[key] = val for key, val of info when key in ['contentType', 'contentEncoding', 'deliveryMode'])
         opts.headers = headers || {}
-        opts.headers.retryCount = retryCount
+        opts.headers['tq-retry-count'] = retryCount
         opts
 
     _msgbody: (msg, contentType) ->
@@ -35,7 +35,7 @@ module.exports = class Ack
 
     retry: =>
         @_unlessResolved =>
-            rc = (@headers.retryCount || 0) + 1
+            rc = (@headers['tq-retry-count'] || 0) + 1
             if rc <= @maxRetries
                 @exchange.publish 'retry', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, rc)
                 .then -> rc
@@ -48,5 +48,5 @@ module.exports = class Ack
             console.log @msg instanceof Buffer
             console.log typeof @msg
             console.log @info.contentType
-            @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers.retryCount || 0)
+            @exchange.publish 'fail', @_msgbody(@msg, @info.contentType), @_mkopts(@headers, @info, @headers['tq-retry-count'] || 0)
             .then -> 0

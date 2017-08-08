@@ -28,13 +28,15 @@ describe 'Ack', ->
             opts.should.have.property 'headers'
             opts.headers.should.eql
                 panda: 'cub'
-                retryCount: 23
+                'tq-retry-count': 23
 
         it 'should set the retryCount even if there are no existing headers', ->
             opts = ack._mkopts undefined, {}, 23
             opts.should.have.property 'headers'
             opts.headers.should.eql
-                retryCount: 23
+                'tq-retry-count': 23
+
+        it 'should copy the original routingKey'
 
     describe '._msgbody()', ->
 
@@ -62,16 +64,16 @@ describe 'Ack', ->
     describe '.retry()', ->
 
         it 'should queue the message for retry if allowed by retry count', ->
-            headers.retryCount = 1
+            headers['tq-retry-count'] = 1
             ack.retry().then (v) ->
-                exchange.publish.should.have.been.calledWith 'retry', msg, { contentType: 'application/json', headers: retryCount: 2 }
+                exchange.publish.should.have.been.calledWith 'retry', msg, { contentType: 'application/json', headers: 'tq-retry-count': 2 }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 2
 
         it 'should queue the message as a failure if we have reached max number of retries', ->
-            headers.retryCount = 3
+            headers['tq-retry-count'] = 3
             ack.retry().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: retryCount: 4 }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: 'tq-retry-count': 4 }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 
@@ -83,7 +85,7 @@ describe 'Ack', ->
                     expect(v).to.be.undefined
 
         it 'should not fail if acknowledge() has already been called', ->
-            headers.retryCount = 3
+            headers['tq-retry-count'] = 3
             ack.acknowledge().then ->
                 ack.retry().then (v) ->
                     exchange.publish.should.not.have.been.called
@@ -105,7 +107,7 @@ describe 'Ack', ->
 
         it 'should queue the message as a failure', ->
             ack.fail().then (v) ->
-                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { retryCount: 0 } }
+                exchange.publish.should.have.been.calledWith 'fail', msg, { contentType: 'application/json', headers: { 'tq-retry-count': 0 } }
                 _ack.acknowledge.should.have.been.calledOnce
                 v.should.eql 0
 
