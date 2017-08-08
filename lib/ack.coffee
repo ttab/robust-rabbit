@@ -10,6 +10,7 @@ module.exports = class Ack
         (opts[key] = val for key, val of info when key in ['contentType', 'contentEncoding', 'deliveryMode'])
         opts.headers = headers || {}
         opts.headers['tq-retry-count'] = retryCount
+        opts.headers['tq-routing-key'] = info.routingKey if info.routingKey
         opts
 
     _msgbody: (msg, contentType) ->

@@ -34,9 +34,22 @@ describe 'TenaciousQ', ->
             ack = { acknowledge: spy(), retry: spy(), fail: spy() }
 
         it 'should invoke the listener', ->
-            tq._listen listener, msg, headers, info, ack
+            tq._listen listener, {my:'message'}, {my:'headers'}, {my:'info'}, ack
             .then ->
-                listener.should.have.been.calledWith msg, headers, info, ack
+                listener.should.have.been.calledWith \
+                    {my:'message'},
+                    {my:'headers'},
+                    {my:'info'},
+                    ack
+
+        it 'should restore the original routing key if this is a retry', ->
+            tq._listen listener, {my:'message'}, {my:'headers', 'tq-routing-key': 'panda'}, {my:'info'}, ack
+            .then ->
+                listener.should.have.been.calledWith \
+                    {my:'message'},
+                    {my:'headers', 'tq-routing-key': 'panda'},
+                    {my:'info', routingKey: 'panda'},
+                    ack
 
         it 'should call ack.acknowledge() on success', ->
             tq._listen listener, msg, headers, info, ack
@@ -109,7 +122,7 @@ describe 'TenaciousQ', ->
                 listener = ->
                     done()
                 tq.subscribe(listener).then ->
-                    queue.subscribe.getCall(0).args[1](undefined, undefined, undefined, { acknowledge: -> })
+                    queue.subscribe.getCall(0).args[1]({}, {}, {}, { acknowledge: -> })
 
             it 'and when invoked, the listener should recieve an ack object', (done) ->
                 listener = (msg, headers, info, ack)->

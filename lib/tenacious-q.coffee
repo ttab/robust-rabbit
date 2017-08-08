@@ -32,6 +32,7 @@ class TenaciousQ
     _listen: (listener, msg, headers, info, ack) ->
         ret = null
         Promise.resolve().then ->
+            info.routingKey = headers['tq-routing-key'] if headers['tq-routing-key']
             ret = listener msg, headers, info, ack
         .then ->
             ack.acknowledge() if ret?.then
