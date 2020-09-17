@@ -4,20 +4,27 @@
   "author": "Fredrik Appelberg <fredrik.appelberg@tt.se>",
   "license": "MIT",
   "description": "",
-  "main": "lib/tenacious-q.coffee",
+  "main": "lib/tenacious-q.js",
   "scripts": {
-    "test": "mocha"
+    "test": "jest"
   },
   "dependencies": {
+    "amqp-as-promised": "^5",
     "bog": "~1.0.0"
   },
   "devDependencies": {
+    "@types/node": "^14.10.3",
     "chai": "~1.10",
+    "chai-as-promised": "~4.1",
+    "coffee-script": "^1.8",
+    "jest": "^26.4.2",
+    "jest-junit": "^11.1.0",
+    "jest-sinon": "^1.0.4",
     "sinon": "~1.12",
     "sinon-chai": "~2.6",
-    "mocha": "~2.1",
-    "chai-as-promised": "~4.1",
-    "coffee-script": "^1.8"
+    "ts-jest": "^26.3.0",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.0.2"
   },
   "private": true
 }

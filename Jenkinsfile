@@ -7,17 +7,14 @@ node {
     sh "git clean -d -f -x"
   }
 
-  docker.image('node:boron').inside {
-    stage('npm install') {
-      sh 'npm install'
+  docker.image('node:erbium').inside {
+    stage('yarn install') {
+      sh 'yarn install'
     }
 
-    stage('mocha') {
-      sh '''
-npm install mocha-jenkins-reporter
-JUNIT_REPORT_PATH=test-results.xml ./node_modules/.bin/mocha -R mocha-jenkins-reporter || true
-'''
-      junit "test-results.xml"
+    stage('jest') {
+      sh 'node_modules/.bin/jest --reporters=jest-junit'
+      junit "junit.xml"
     }
   }
 
