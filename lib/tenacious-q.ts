@@ -18,9 +18,8 @@ export interface TqOptions {
 }
 
 declare interface TqCallback<T> {
-    (msg: T, header: amqp.MessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>): Promise<void>
+    (msg: T, header: amqp.MessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>): Promise<void> | void
 }
-
 
 class TenaciousQ<T> {
     amqpc: amqp.AmqpClient
@@ -65,30 +64,34 @@ class TenaciousQ<T> {
                 return failures.bind(exname, 'fail');}).catch(err => log.error(err));
     }
 
-    _listen(listener, msg, headers, info, ack) {
-        let ret = null;
-        return Promise.resolve().then(function() {
-            if (headers['tq-routing-key']) { info.routingKey = headers['tq-routing-key']; }
-            return ret = listener(msg, headers, info, ack);
-        }).then(function() {
-                if (ret != null ? ret.then : undefined) { return ack.acknowledge(); }}).catch(err => {
-                    ack.retry();
-                    return log.error(`${this.qname} error`, (err.stack ? err.stack : err));
-                });
+    async _listen(listener: TqCallback<T>, msg: T, headers: TqMessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>) {
+        try {
+            if (headers['tq-routing-key']) {
+                info.routingKey = headers['tq-routing-key'];
+            }
+            let ret = listener(msg, headers, info, ack);
+            if (ret && ret['then']) {
+                await ret
+                await ack.acknowledge()
+            }
+        } catch (err) {
+            log.error(`${this.qname} error`, (err.stack ? err.stack : err));
+            await ack.retry()
+        }
     }
 
-    subscribe(options: amqp.SubscribeOpts, listener: TqCallback<T>) {
+    async subscribe(options: amqp.SubscribeOpts, listener: TqCallback<T>) {
         if (typeof options === 'function') {
             listener = options;
             options = {};
         }
         options.ack = true;
         options.prefetchCount = this.prefetchCount;
-        return this.exchange.then(ex => {
-            return this.queue.subscribe(options, (msg, headers, info, ack) => {
-                return this._listen(listener, msg, headers, info, new Ack(ex, msg, headers as TqMessageHeaders, info, ack, this.maxRetries));
-            });
-        }).catch(err => log.error(err));
+
+        let ex = await this.exchange
+        await this.queue.subscribe(options, (msg, headers, info, ack) => {
+            this._listen(listener, msg, headers as TqMessageHeaders, info, new Ack(ex, msg, headers as TqMessageHeaders, info, ack, this.maxRetries));
+        })
     }
 }
 

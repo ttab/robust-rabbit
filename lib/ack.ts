@@ -9,6 +9,7 @@ import log = require('bog');
 
 export interface TqMessageHeaders extends amqp.MessageHeaders {
     'tq-retry-count': number
+    'tq-routing-key': string
 }
 
 export class Ack<T> {
