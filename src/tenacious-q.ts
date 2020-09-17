@@ -80,7 +80,9 @@ class TenaciousQ<T> {
         }
     }
 
-    async subscribe(options: amqp.SubscribeOpts, listener: TqCallback<T>) {
+    async subscribe(listener: TqCallback<T>): Promise<void>;
+    async subscribe(options: amqp.SubscribeOpts, listener: TqCallback<T>): Promise<void>;
+    async subscribe(options: amqp.SubscribeOpts | TqCallback<T>, listener?: TqCallback<T>): Promise<void> {
         if (typeof options === 'function') {
             listener = options;
             options = {};
@@ -95,7 +97,8 @@ class TenaciousQ<T> {
     }
 }
 
-export default function<T>(amqpc: amqp.AmqpClient, queue: amqp.Queue<T>, options: TqOptions) {
+export default async function<T>(amqpc: amqp.AmqpClient, queue: amqp.Queue<T>, options: TqOptions) {
     const q = new TenaciousQ<T>(amqpc, queue, options);
-    return q.exchange.then(() => q);
+    await q.exchange
+    return q
 };

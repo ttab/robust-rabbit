@@ -3,7 +3,7 @@
  * DS102: Remove unnecessary code created because of implicit returns
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const { Ack } = require('../lib/ack');
+const { Ack } = require('../src/ack');
 
 describe('Ack', function() {
     let _ack, ack, headers, info, msg;

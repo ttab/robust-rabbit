@@ -4,7 +4,7 @@
   "author": "Fredrik Appelberg <fredrik.appelberg@tt.se>",
   "license": "MIT",
   "description": "",
-  "main": "lib/tenacious-q.js",
+  "main": "src/tenacious-q.ts",
   "scripts": {
     "test": "jest"
   },

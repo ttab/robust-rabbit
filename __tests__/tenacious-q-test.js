@@ -3,8 +3,8 @@
  * DS102: Remove unnecessary code created because of implicit returns
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const TenaciousQ = require('../lib/tenacious-q').default;
-const Ack        = require('../lib/ack');
+const TenaciousQ = require('../src/tenacious-q').default;
+const Ack        = require('../src/ack');
 
 describe('TenaciousQ', function() {
     let amqpc, exchange, queue;
