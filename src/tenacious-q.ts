@@ -1,10 +1,3 @@
-/*
- * decaffeinate suggestions:
- * DS102: Remove unnecessary code created because of implicit returns
- * DS207: Consider shorter variations of null checks
- * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
- */
-
 import amqp from 'amqp-as-promised';
 import { Ack, TqMessageHeaders } from './ack';
 import log = require('bog');
@@ -19,6 +12,29 @@ export interface TqOptions {
 
 declare interface TqCallback<T> {
     (msg: T, header: amqp.MessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>): Promise<void> | void
+}
+
+async function setup(amqpc: amqp.AmqpClient, qname: string, retryDelay: number) {
+    const exname = `${qname}-flow`;
+    let [retries, failures, exchange] = await Promise.all([
+        amqpc.queue(`${qname}-retries`, {
+            durable: true,
+            autoDelete: false,
+            arguments: {
+                'x-message-ttl': retryDelay,
+                'x-dead-letter-exchange': '',
+                'x-dead-letter-routing-key': qname
+            }
+        }),
+        amqpc.queue(`${qname}-failures`, {
+            durable: true,
+            autoDelete: false
+        }),
+        amqpc.exchange(exname, { autoDelete: true })
+    ])
+    await retries.bind(exname, 'retry');
+    await failures.bind(exname, 'fail');
+    return exchange
 }
 
 class TenaciousQ<T> {
@@ -37,31 +53,8 @@ class TenaciousQ<T> {
         this.retryDelay = ((options.retry != null ? options.retry.delay : undefined) || 10) * 1000;
         this.maxRetries = (((options.retry != null ? options.retry.max : undefined) || 60) * 1000) / this.retryDelay;
         this.prefetchCount = options.prefetchCount || 1;
-
         this.qname = this.queue['name'];
-        const exname = `${this.qname}-flow`;
-        this.exchange = this.amqpc.exchange(exname, { autoDelete: true });
-        this.exchange.then(function() { return Promise.all([
-            this.amqpc.queue(`${this.qname}-retries`, {
-                durable: true,
-                autoDelete: false,
-                arguments: {
-                    'x-message-ttl': this.retryDelay,
-                    'x-dead-letter-exchange': '',
-                    'x-dead-letter-routing-key': this.qname
-                }
-            }
-                            ),
-            this.amqpc.queue(`${this.qname}-failures`, {
-                durable: true,
-                autoDelete: false
-            }
-                            )
-        ]); }.bind(this))
-        // @ts-ignore
-            .then(function([retries, failures]) {
-                retries.bind(exname, 'retry');
-                return failures.bind(exname, 'fail');}).catch(err => log.error(err));
+        this.exchange = setup(amqpc, this.qname, this.retryDelay)
     }
 
     async _listen(listener: TqCallback<T>, msg: T, headers: TqMessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>) {

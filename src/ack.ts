@@ -44,7 +44,7 @@ export class Ack<T> {
         return opts;
     }
 
-    _msgbody(msg, contentType) {
+    _msgbody(msg: any, contentType: string) {
         if (contentType === 'application/json') {
             return msg;
         } else {
