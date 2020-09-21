@@ -1,11 +1,4 @@
-/*
- * decaffeinate suggestions:
- * DS102: Remove unnecessary code created because of implicit returns
- * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
- */
-
 import amqp from 'amqp-as-promised';
-import log = require('bog');
 
 export interface TqMessageHeaders extends amqp.MessageHeaders {
     'tq-retry-count': number
@@ -52,37 +45,46 @@ export class Ack<T> {
         }
     }
 
-    _unlessResolved(fn) {
-        if (this.resolved) {
-            return Promise.resolve();
-        } else {
+    async _unlessResolved(fn: () => Promise<number>): Promise<number> {
+        if (this.resolved) return undefined
+        try {
             this.resolved = true;
-            return Promise.resolve().then(() => fn()).then(res => {
-                this.ack.acknowledge();
-                return res;
-            }).catch(err => log.error(err.stack));
+            let res = await fn()
+            this.ack.acknowledge()
+            return res
+        } catch (err) {
+            console.error(err.stack)
         }
     }
 
-    acknowledge(): Promise<void> { return this._unlessResolved(function() {}); }
+    acknowledge() { return this._unlessResolved(async () => undefined); }
 
-    retry(): Promise<number> {
-        return this._unlessResolved(() => {
+    retry() {
+        return this._unlessResolved(async () => {
             const rc = (this.headers['tq-retry-count'] || 0) + 1;
             if (rc <= this.maxRetries) {
-                return this.exchange.publish('retry', this._msgbody(this.msg, this.info.contentType), this._mkopts(this.headers, this.info, rc))
-                .then(() => rc);
+                await this.exchange.publish(
+                    'retry',
+                    this._msgbody(this.msg, this.info.contentType),
+                    this._mkopts(this.headers, this.info, rc))
+                return rc
             } else {
-                return this.exchange.publish('fail', this._msgbody(this.msg, this.info.contentType), this._mkopts(this.headers, this.info, rc))
-                .then(() => 0);
+                await this.exchange.publish(
+                    'fail',
+                    this._msgbody(this.msg, this.info.contentType),
+                    this._mkopts(this.headers, this.info, rc))
+                return 0
             }
         });
     }
 
-    fail(): Promise<number> {
-        return this._unlessResolved(() => {
-            return this.exchange.publish('fail', this._msgbody(this.msg, this.info.contentType), this._mkopts(this.headers, this.info, this.headers['tq-retry-count'] || 0))
-            .then(() => 0);
+    async fail() {
+        return this._unlessResolved(async () => {
+            await this.exchange.publish(
+                'fail',
+                this._msgbody(this.msg, this.info.contentType),
+                this._mkopts(this.headers, this.info, this.headers['tq-retry-count'] || 0))
+            return 0
         });
     }
 }

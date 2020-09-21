@@ -1,6 +1,5 @@
 import amqp from 'amqp-as-promised';
 import { Ack, TqMessageHeaders } from './ack';
-import log = require('bog');
 
 export interface TqOptions {
     retry?: {
@@ -68,7 +67,7 @@ class TenaciousQ<T> {
                 await ack.acknowledge()
             }
         } catch (err) {
-            log.error(`${this.qname} error`, (err.stack ? err.stack : err));
+            console.error(`${this.qname} error`, (err.stack ? err.stack : err));
             await ack.retry()
         }
     }
