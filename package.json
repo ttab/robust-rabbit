@@ -4,9 +4,10 @@
   "author": "Fredrik Appelberg <fredrik.appelberg@tt.se>",
   "license": "MIT",
   "description": "",
-  "main": "src/tenacious-q.ts",
+  "main": "dist/tenacious-q.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "install": "tsc -d"
   },
   "dependencies": {
     "amqp-as-promised": "^5",

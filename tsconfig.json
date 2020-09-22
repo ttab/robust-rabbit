@@ -1,10 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [ "ES2017" ],
+    "lib": [
+      "ES2017"
+    ],
     "moduleResolution": "Node",
     "module": "CommonJS",
     "esModuleInterop": true,
-    "allowJs": true
+    "allowJs": true,
+    "outDir": "dist"
   }
 }
