@@ -1,13 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": [
-      "ES2017"
-    ],
-    "moduleResolution": "Node",
-    "module": "CommonJS",
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "dist",
     "esModuleInterop": true,
-    "allowJs": true,
-    "outDir": "dist"
-  }
+    "resolveJsonModule": true,
+    "experimentalDecorators": true
+  },
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ],
+  "include": [
+    "src/**/*.ts"
+  ]
 }
