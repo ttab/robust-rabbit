@@ -9,14 +9,19 @@ eventually end up in a `fail queue`.
 
 ## Usage
 
-    TenaciousQ = require 'tenacious-q'
+```typescript
+import { TenaciousQ } from 'tenacious-q'
 
-    amqpc = [ create an amqpc object ]
-    queue = amqpc.queue 'myqueue', ...
-
-    TenaciousQ(amqpc, queue, options).then (tq) ->
-	    tq.subscribe (msg, headers, info) ->
-		    ... do stuff
+let queue = await amqpc.queue('myqueue', ...)
+let tq = new TenaciousQ(amqpc, queue, { 
+  retry: { delay: 10, max: 60 },
+})
+r
+await tq.subscribe(async (msg, headers, info, ack) => {
+  ... do stuff
+  ack.acknowledge() // or just return a promise; both work fine
+})
+```
 
 ## Options
 

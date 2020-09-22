@@ -11,5 +11,5 @@ chai.use(require('chai-as-promised'));
 chai.use(require('sinon-chai'));
 chai.should();
 
-const log            = require('bog');
-log.level(0);
+import log from 'loglevel';
+log.setLevel('silent')

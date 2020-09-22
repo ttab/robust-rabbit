@@ -3,8 +3,7 @@
  * DS102: Remove unnecessary code created because of implicit returns
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const TenaciousQ = require('../src/tenacious-q').default;
-const Ack        = require('../src/ack');
+import { TenaciousQ } from '../src/tenacious-q';
 
 describe('TenaciousQ', function() {
     let amqpc, exchange, queue;
@@ -23,16 +22,17 @@ describe('TenaciousQ', function() {
             subscribe: spy()
         };
 
-        return TenaciousQ(amqpc, queue).then(_tq => tq = _tq);
+        tq = new TenaciousQ(amqpc, queue)
     });
 
     describe('.constructor()', () => {
-        it('should parse the options object', () =>
-            TenaciousQ(amqpc, queue, { retry: { delay: 15, max: 60 }, prefetchCount: 7 }).then(function(tq) {
-                tq.retryDelay.should.equal(15000);
-                tq.maxRetries.should.equal(4);
-                tq.prefetchCount.should.equal(7);
-    }))});
+        it('should parse the options object', () => {
+            tq = new TenaciousQ(amqpc, queue, { retry: { delay: 15, max: 60 }, prefetchCount: 7 })
+            tq.retryDelay.should.equal(15000);
+            tq.maxRetries.should.equal(4);
+            tq.prefetchCount.should.equal(7);
+        })
+    })
 
     describe('._listen()', function() {
         let ack, headers, info, msg;
@@ -131,7 +131,7 @@ describe('TenaciousQ', function() {
         describe('should call subscribe on the underlying queue', function() {
             beforeEach(function() {
                 queue.subscribe = spy();
-                return TenaciousQ(amqpc, queue).then(_tq => tq = _tq);
+                tq = new TenaciousQ(amqpc, queue)
             });
 
             it('with a callback that in turn will invoke the listener', function(done) {

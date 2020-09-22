@@ -47,14 +47,10 @@ export class Ack<T> {
 
     async _unlessResolved(fn: () => Promise<number>): Promise<number> {
         if (this.resolved) return undefined
-        try {
-            this.resolved = true;
-            let res = await fn()
-            this.ack.acknowledge()
-            return res
-        } catch (err) {
-            console.error(err.stack)
-        }
+        this.resolved = true;
+        let res = await fn()
+        this.ack.acknowledge()
+        return res
     }
 
     acknowledge() { return this._unlessResolved(async () => undefined); }

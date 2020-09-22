@@ -1,5 +1,8 @@
 import amqp from 'amqp-as-promised';
+import log from 'loglevel';
 import { Ack, TqMessageHeaders } from './ack';
+
+export { Ack } from './ack';
 
 export interface TqOptions {
     retry?: {
@@ -36,7 +39,10 @@ async function setup(amqpc: amqp.AmqpClient, qname: string, retryDelay: number) 
     return exchange
 }
 
-class TenaciousQ<T> {
+/**
+ * An AMQP queue with automatic acknowledge/retry behaviour.
+ */
+export class TenaciousQ<T> {
     amqpc: amqp.AmqpClient
     queue: amqp.Queue<T>
     qname: string
@@ -67,12 +73,47 @@ class TenaciousQ<T> {
                 await ack.acknowledge()
             }
         } catch (err) {
-            console.error(`${this.qname} error`, (err.stack ? err.stack : err));
+            log.error(`${this.qname} error`, (err.stack ? err.stack : err));
             await ack.retry()
         }
     }
 
+    /**
+     * Subscribe a callback function to the queue.
+     *
+     * @param listener - Callback function that gets called on each
+     *                   message. In addition to the usual arguments
+     *                   (`message`, `headers`, `deliveryInfo`), it
+     *                   also recieves an `Ack` object that can be
+     *                   used to `acknowledge`, `retry` or `fail` the message.
+     *
+     *                   If the listener returns a `Promise`, TenaciousQ
+     *                   will automatically `acknowledge` or `retry`
+     *                   the message depending on the outcome, if it
+     *                   hasn't already been handled in the
+     *                   application logic.
+     *
+     */
     async subscribe(listener: TqCallback<T>): Promise<void>;
+    /**
+     * Subscribe a callback function to the queue.
+     *
+     * @param options - AMQP queue subscription options.
+     *
+     * @param listener - Callback function that gets called on each
+     *                   message. In addition to the usual arguments
+     *                   (`message`, `headers`, `deliveryInfo`), it
+     *                   also recieves an `Ack` object that can be
+     *                   used to `acknowledge`, `retry` or `fail` the
+     *                   message.
+     *
+     *                   If the listener returns a `Promise`, TenaciousQ
+     *                   will automatically `acknowledge` or `retry`
+     *                   the message depending on the outcome, if it
+     *                   hasn't already been handled in the
+     *                   application logic.
+     *
+     */
     async subscribe(options: amqp.SubscribeOpts, listener: TqCallback<T>): Promise<void>;
     async subscribe(options: amqp.SubscribeOpts | TqCallback<T>, listener?: TqCallback<T>): Promise<void> {
         if (typeof options === 'function') {
@@ -88,9 +129,3 @@ class TenaciousQ<T> {
         })
     }
 }
-
-export default async function<T>(amqpc: amqp.AmqpClient, queue: amqp.Queue<T>, options: TqOptions) {
-    const q = new TenaciousQ<T>(amqpc, queue, options);
-    await q.exchange
-    return q
-};
