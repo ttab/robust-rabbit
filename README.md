@@ -1,6 +1,9 @@
 TenaciousQ
 ==========
 
+![Build Status](https://ci2.tt.se/buildStatus/icon\?job\=ttab/tenacious-q/master)
+
+
 A simple mechanism for robust handling of messages on a AMQP
 queue. Messages are not removed until ACKed, and if processing fails
 the message is put away on a separate `retry queue` and will be
