@@ -1,19 +1,30 @@
 import amqp from 'amqp-as-promised';
-import log from 'loglevel';
 import { Ack, TqMessageHeaders } from './ack';
 
 export { Ack } from './ack';
 
-export interface TqOptions {
+export interface TqOptions<T> {
     retry?: {
         delay?: number
         max?: number
     },
-    prefetchCount?: number
+    prefetchCount?: number,
+    errorHandler?: TqErrorHandler<T>
 }
 
-declare interface TqCallback<T> {
+export interface TqCallback<T> {
     (msg: T, header: amqp.MessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>): Promise<void> | void
+}
+
+export interface TqErrorHandler<T> {
+    (error: {
+        msg: T,
+        headers: amqp.MessageHeaders,
+        info: amqp.DeliveryInfo,
+        ack: Ack<T>,
+        error: Error,
+        qname: string}
+    ): void
 }
 
 async function setup(amqpc: amqp.AmqpClient, qname: string, retryDelay: number) {
@@ -50,8 +61,9 @@ export class TenaciousQ<T> {
     retryDelay: number
     maxRetries: number
     prefetchCount: number
+    errorHandler: TqErrorHandler<T>
 
-    constructor(amqpc: amqp.AmqpClient, queue: amqp.Queue<T>, options: TqOptions = {}) {
+    constructor(amqpc: amqp.AmqpClient, queue: amqp.Queue<T>, options: TqOptions<T> = { }) {
         this.subscribe = this.subscribe.bind(this);
         this.amqpc = amqpc;
         this.queue = queue;
@@ -60,6 +72,10 @@ export class TenaciousQ<T> {
         this.prefetchCount = options.prefetchCount || 1;
         this.qname = this.queue['name'];
         this.exchange = setup(amqpc, this.qname, this.retryDelay)
+        this.errorHandler = options.errorHandler || (async ({error, qname, ack}) => {
+            console.log(`${qname} error`, error);
+            await ack.retry()
+        })
     }
 
     async _listen(listener: TqCallback<T>, msg: T, headers: TqMessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>) {
@@ -72,9 +88,15 @@ export class TenaciousQ<T> {
                 await ret
                 await ack.acknowledge()
             }
-        } catch (err) {
-            log.error(`${this.qname} error`, (err.stack ? err.stack : err));
-            await ack.retry()
+        } catch (error) {
+            this.errorHandler({
+                msg,
+                headers,
+                info,
+                ack,
+                error,
+                qname: this.qname
+            })
         }
     }
 
