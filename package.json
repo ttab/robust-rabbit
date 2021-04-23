@@ -10,7 +10,8 @@
     "install": "tsc -d"
   },
   "dependencies": {
-    "amqp-as-promised": "^5"
+    "amqp-as-promised": "^5",
+    "loglevel": "^1.7.1"
   },
   "devDependencies": {
     "@types/node": "^14.10.3",
