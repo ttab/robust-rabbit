@@ -150,4 +150,11 @@ export class TenaciousQ<T> {
             this._listen(listener, msg, headers as TqMessageHeaders, info, new Ack(ex, msg, headers as TqMessageHeaders, info, ack, this.maxRetries));
         })
     }
+
+    /**
+     * Unsubscribe the current callback function.
+     */
+    async unsubscribe(): Promise<void> {
+        await this.queue.unsubscribe()
+    }
 }
