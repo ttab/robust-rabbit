@@ -10,11 +10,11 @@
     "install": "tsc -d"
   },
   "dependencies": {
+    "@types/node": "^14.10.3",
     "amqp-as-promised": "^5",
     "loglevel": "^1.7.1"
   },
   "devDependencies": {
-    "@types/node": "^14.10.3",
     "chai": "~1.10",
     "chai-as-promised": "~4.1",
     "jest": "^26.4.2",
