@@ -1,4 +1,6 @@
 import amqp from 'amqp-as-promised';
+import TypedEventEmitter from 'typed-emitter';
+import { TqEvents } from './tenacious-q';
 
 export interface TqMessageHeaders extends amqp.MessageHeaders {
     'tq-retry-count': number
@@ -13,8 +15,17 @@ export class Ack<T> {
     ack: amqp.Ack
     maxRetries: number
     resolved: boolean
+    events: TypedEventEmitter<TqEvents<T>>
 
-    constructor(exchange: amqp.Exchange, msg: T, headers: TqMessageHeaders, info: amqp.DeliveryInfo, ack: amqp.Ack, maxRetries=3) {
+    constructor(
+        exchange: amqp.Exchange,
+        msg: T, 
+        headers: TqMessageHeaders, 
+        info: amqp.DeliveryInfo, 
+        events: TypedEventEmitter<TqEvents<T>>,
+        ack: amqp.Ack, 
+        maxRetries=3
+    ) {
         this._unlessResolved = this._unlessResolved.bind(this);
         this.acknowledge = this.acknowledge.bind(this);
         this.retry = this.retry.bind(this);
@@ -25,6 +36,7 @@ export class Ack<T> {
         this.info = info;
         this.ack = ack;
         this.maxRetries = maxRetries;
+        this.events = events;
         this.resolved = false;
     }
 
@@ -50,6 +62,7 @@ export class Ack<T> {
         this.resolved = true;
         let res = await fn()
         this.ack.acknowledge()
+        this.events.emit('acknowledged', this.msg, this.headers, this.info)
         return res
     }
 
@@ -63,12 +76,14 @@ export class Ack<T> {
                     'retry',
                     this._msgbody(this.msg, this.info.contentType),
                     this._mkopts(this.headers, this.info, rc))
+                this.events.emit('retried', this.msg, this.headers, this.info)
                 return rc
             } else {
                 await this.exchange.publish(
                     'fail',
                     this._msgbody(this.msg, this.info.contentType),
                     this._mkopts(this.headers, this.info, rc))
+                this.events.emit('failed', this.msg, this.headers, this.info)
                 return 0
             }
         });
@@ -80,6 +95,7 @@ export class Ack<T> {
                 'fail',
                 this._msgbody(this.msg, this.info.contentType),
                 this._mkopts(this.headers, this.info, this.headers['tq-retry-count'] || 0))
+                this.events.emit('failed', this.msg, this.headers, this.info)
             return 0
         });
     }

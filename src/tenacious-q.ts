@@ -1,7 +1,16 @@
 import amqp from 'amqp-as-promised';
 import { Ack, TqMessageHeaders } from './ack';
+import { EventEmitter } from 'events'
+import TypedEmitter from 'typed-emitter'
 
 export { Ack } from './ack';
+
+export type TqEvents<T> = {
+    error: (error: Error, msg: T, headers: amqp.MessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>, qname: string) => void    
+    acknowledged: (msg: T, headers: amqp.MessageHeaders, info: amqp.DeliveryInfo) => void
+    retried: (msg: T, headers: amqp.MessageHeaders, info: amqp.DeliveryInfo) => void
+    failed: (msg: T, headers: amqp.MessageHeaders, info: amqp.DeliveryInfo) => void
+}
 
 export interface TqOptions<T> {
     retry?: {
@@ -16,16 +25,7 @@ export interface TqCallback<T> {
     (msg: T, header: amqp.MessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>): Promise<void> | void
 }
 
-export interface TqErrorHandler<T> {
-    (error: {
-        msg: T,
-        headers: amqp.MessageHeaders,
-        info: amqp.DeliveryInfo,
-        ack: Ack<T>,
-        error: Error,
-        qname: string}
-    ): void
-}
+export type TqErrorHandler<T> = TqEvents<T>['error']
 
 async function setup(amqpc: amqp.AmqpClient, qname: string, retryDelay: number) {
     const exname = `${qname}-flow`;
@@ -53,7 +53,7 @@ async function setup(amqpc: amqp.AmqpClient, qname: string, retryDelay: number) 
 /**
  * An AMQP queue with automatic acknowledge/retry behaviour.
  */
-export class TenaciousQ<T> {
+export class TenaciousQ<T> extends (EventEmitter as { new<T>(): TypedEmitter<TqEvents<T>>})<T> {
     amqpc: amqp.AmqpClient
     queue: amqp.Queue<T>
     qname: string
@@ -61,9 +61,9 @@ export class TenaciousQ<T> {
     retryDelay: number
     maxRetries: number
     prefetchCount: number
-    errorHandler: TqErrorHandler<T>
 
     constructor(amqpc: amqp.AmqpClient, queue: amqp.Queue<T>, options: TqOptions<T> = { }) {
+        super()
         this.subscribe = this.subscribe.bind(this);
         this.amqpc = amqpc;
         this.queue = queue;
@@ -72,10 +72,14 @@ export class TenaciousQ<T> {
         this.prefetchCount = options.prefetchCount || 1;
         this.qname = this.queue['name'];
         this.exchange = setup(amqpc, this.qname, this.retryDelay)
-        this.errorHandler = options.errorHandler || (async ({error, qname, ack}) => {
-            console.log(`${qname} error`, error);
-            await ack.retry()
-        })
+        if (options.errorHandler) {
+            this.on('error', options.errorHandler)
+        } else {
+            this.on('error', async (error, _msg, _headers, _info, ack) => {
+                console.log(`${this.qname} error`, error)
+                await ack.retry()
+            })
+        }
     }
 
     async _listen(listener: TqCallback<T>, msg: T, headers: TqMessageHeaders, info: amqp.DeliveryInfo, ack: Ack<T>) {
@@ -89,14 +93,7 @@ export class TenaciousQ<T> {
                 await ack.acknowledge()
             }
         } catch (error) {
-            this.errorHandler({
-                msg,
-                headers,
-                info,
-                ack,
-                error,
-                qname: this.qname
-            })
+            this.emit('error', error, msg, headers, info, ack, this.qname)
         }
     }
 
@@ -147,7 +144,8 @@ export class TenaciousQ<T> {
 
         let ex = await this.exchange
         await this.queue.subscribe(options, (msg, headers, info, ack) => {
-            this._listen(listener, msg, headers as TqMessageHeaders, info, new Ack(ex, msg, headers as TqMessageHeaders, info, ack, this.maxRetries));
+            this._listen(listener, msg, headers as TqMessageHeaders, info, 
+                new Ack(ex, msg, headers as TqMessageHeaders, info, this, ack, this.maxRetries));
         })
     }
 
