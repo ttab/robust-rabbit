@@ -3,11 +3,15 @@
  * DS102: Remove unnecessary code created because of implicit returns
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-import { TenaciousQ } from '../src/tenacious-q';
+import { TenaciousQ, TqCallback } from '../src/tenacious-q';
+import { stub, spy, match, SinonStub } from 'sinon'
+import { expect } from 'chai'
+import { TqMessageHeaders } from '../src/ack';
+import amqp from 'amqp-as-promised';
 
 describe('TenaciousQ', function() {
     let amqpc, exchange, queue;
-    let tq = (queue = (exchange = (amqpc = undefined)));
+    let tq: TenaciousQ<unknown>
 
     beforeEach(function() {
         exchange = {publish: stub().returns(Promise.resolve())};
@@ -28,15 +32,16 @@ describe('TenaciousQ', function() {
     describe('.constructor()', () => {
         it('should parse the options object', () => {
             tq = new TenaciousQ(amqpc, queue, { retry: { delay: 15, max: 60 }, prefetchCount: 7 })
-            tq.retryDelay.should.equal(15000);
-            tq.maxRetries.should.equal(4);
-            tq.prefetchCount.should.equal(7);
+            expect(tq.retryDelay).to.eql(15000);
+            expect(tq.maxRetries).to.eql(4);
+            expect(tq.prefetchCount).to.eql(7);
         })
     })
 
     describe('._listen()', function() {
         let ack, headers, info, msg;
-        let listener = (msg = (headers = (info = (ack = undefined))));
+        let listener: TqCallback<unknown> & SinonStub
+
         beforeEach(function() {
             listener = stub().returns(Promise.resolve());
             msg = {};
@@ -44,14 +49,14 @@ describe('TenaciousQ', function() {
             info = {};
             return ack = { acknowledge: spy(), retry: spy(), fail: spy() };});
 
-        it('should invoke the listener', () => tq._listen(listener, {my:'message'}, {my:'headers'}, {my:'info'}, ack)
+        it('should invoke the listener', () => tq._listen(listener, {my:'message'}, {my:'headers'} as unknown as TqMessageHeaders, {my:'info'} as unknown as amqp.DeliveryInfo, ack)
         .then(() => listener.should.have.been.calledWith(
             {my:'message'},
             {my:'headers'},
             {my:'info'},
             ack)));
 
-        it('should restore the original routing key if this is a retry', () => tq._listen(listener, {my:'message'}, {my:'headers', 'tq-routing-key': 'panda'}, {my:'info'}, ack)
+        it('should restore the original routing key if this is a retry', () => tq._listen(listener, {my:'message'}, {my:'headers', 'tq-routing-key': 'panda'} as unknown as TqMessageHeaders, {my:'info'} as unknown as amqp.DeliveryInfo, ack)
         .then(() => listener.should.have.been.calledWith(
             {my:'message'},
             {my:'headers', 'tq-routing-key': 'panda'},
@@ -78,7 +83,7 @@ describe('TenaciousQ', function() {
         describe('when listener doesnt return a promise', function() {
 
             it('should damn well NOT ack.acknowledge', function() {
-                listener = () => undefined;
+                listener.returns(undefined)
                 return tq._listen(listener, msg, headers, info, ack)
                 .then(function() {
                     ack.acknowledge.should.not.have.been.called;
@@ -88,7 +93,7 @@ describe('TenaciousQ', function() {
             });
 
             it('should however retry on fail', function() {
-                listener = function() { throw new Error('Bad bad'); };
+                listener.throws(new Error('Bad bad'))
                 return tq._listen(listener, msg, headers, info, ack)
                 .then(function() {
                     ack.retry.should.have.been.called; //!
@@ -126,7 +131,7 @@ describe('TenaciousQ', function() {
 
         it('should use default options if none are given', () => tq.subscribe(function() {}).then(() => queue.subscribe.should.have.been.calledWith({ ack: true, prefetchCount: 1}, match.func)));
 
-        it('should use specified options, but set ack and prefetchCount', () => tq.subscribe({ panda: 'cub' }, function() {}).then(() => queue.subscribe.should.have.been.calledWith({ panda: 'cub', ack: true, prefetchCount: 1}, match.func)));
+        it('should use specified options, but set ack and prefetchCount', () => tq.subscribe({ panda: 'cub' } as amqp.SubscribeOpts, function() {}).then(() => queue.subscribe.should.have.been.calledWith({ panda: 'cub', ack: true, prefetchCount: 1}, match.func)));
 
         describe('should call subscribe on the underlying queue', function() {
             beforeEach(function() {

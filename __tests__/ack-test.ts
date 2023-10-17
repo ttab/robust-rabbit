@@ -1,13 +1,18 @@
+import EventEmitter from 'events';
+import { stub, spy, match } from 'sinon'
+import { expect } from 'chai'
+import TypedEventEmitter from 'typed-emitter';
+
 /*
  * decaffeinate suggestions:
  * DS102: Remove unnecessary code created because of implicit returns
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
 import { Ack } from '../src/ack';
+import { TqEvents } from '../src/tenacious-q';
 
 describe('Ack', function() {
-    let _ack, ack, headers, info, msg;
-    let exchange = (msg = (info = (headers = (ack = (_ack = undefined)))));
+    let _ack, ack, headers, info, msg, exchange, events;
 
     beforeEach(function() {
         exchange = { publish: stub().returns(Promise.resolve()) };
@@ -15,7 +20,8 @@ describe('Ack', function() {
         headers = {};
         info = { contentType: 'application/json' };
         _ack = { acknowledge: spy() };
-        ack = new Ack(exchange, msg, headers, info, _ack);
+        events = new EventEmitter as TypedEventEmitter<TqEvents<unknown>>;
+        ack = new Ack(exchange, msg, headers, info, events, _ack);
     });
 
     describe('._mkopts()', function() {
