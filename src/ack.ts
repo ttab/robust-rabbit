@@ -3,100 +3,100 @@ import TypedEventEmitter from 'typed-emitter';
 import { TqEvents } from './tenacious-q';
 
 export interface TqMessageHeaders extends amqp.MessageHeaders {
-    'tq-retry-count': number
-    'tq-routing-key': string
+  'tq-retry-count': number
+  'tq-routing-key': string
 }
 
 export class Ack<T> {
-    exchange: amqp.Exchange
-    msg: T
-    headers: TqMessageHeaders
-    info: amqp.DeliveryInfo
-    ack: amqp.Ack
-    maxRetries: number
-    resolved: boolean
-    events: TypedEventEmitter<TqEvents<T>>
+  exchange: amqp.Exchange
+  msg: T
+  headers: TqMessageHeaders
+  info: amqp.DeliveryInfo
+  ack: amqp.Ack
+  maxRetries: number
+  resolved: boolean
+  events: TypedEventEmitter<TqEvents<T>>
 
-    constructor(
-        exchange: amqp.Exchange,
-        msg: T, 
-        headers: TqMessageHeaders, 
-        info: amqp.DeliveryInfo, 
-        events: TypedEventEmitter<TqEvents<T>>,
-        ack: amqp.Ack, 
-        maxRetries=3
-    ) {
-        this._unlessResolved = this._unlessResolved.bind(this);
-        this.acknowledge = this.acknowledge.bind(this);
-        this.retry = this.retry.bind(this);
-        this.fail = this.fail.bind(this);
-        this.exchange = exchange;
-        this.msg = msg;
-        this.headers = headers;
-        this.info = info;
-        this.ack = ack;
-        this.maxRetries = maxRetries;
-        this.events = events;
-        this.resolved = false;
+  constructor(
+    exchange: amqp.Exchange,
+    msg: T,
+    headers: TqMessageHeaders,
+    info: amqp.DeliveryInfo,
+    events: TypedEventEmitter<TqEvents<T>>,
+    ack: amqp.Ack,
+    maxRetries = 3
+  ) {
+    this._unlessResolved = this._unlessResolved.bind(this);
+    this.acknowledge = this.acknowledge.bind(this);
+    this.retry = this.retry.bind(this);
+    this.fail = this.fail.bind(this);
+    this.exchange = exchange;
+    this.msg = msg;
+    this.headers = headers;
+    this.info = info;
+    this.ack = ack;
+    this.maxRetries = maxRetries;
+    this.events = events;
+    this.resolved = false;
+  }
+
+  _mkopts(headers: TqMessageHeaders, info: amqp.DeliveryInfo, retryCount: number) {
+    const opts: any = {};
+    for (let key in info) { const val = info[key]; if (['contentType', 'contentEncoding', 'deliveryMode'].includes(key)) { opts[key] = val; } }
+    opts.headers = headers || {};
+    opts.headers['tq-retry-count'] = retryCount;
+    if (info.routingKey) { opts.headers['tq-routing-key'] = info.routingKey; }
+    return opts;
+  }
+
+  _msgbody(msg: any, contentType: string) {
+    if (contentType === 'application/json') {
+      return msg;
+    } else {
+      return msg.data || msg;
     }
+  }
 
-    _mkopts(headers: TqMessageHeaders, info: amqp.DeliveryInfo, retryCount: number) {
-        const opts: any = {};
-        for (let key in info) { const val = info[key]; if (['contentType', 'contentEncoding', 'deliveryMode'].includes(key)) { opts[key] = val; } }
-        opts.headers = headers || {};
-        opts.headers['tq-retry-count'] = retryCount;
-        if (info.routingKey) { opts.headers['tq-routing-key'] = info.routingKey; }
-        return opts;
-    }
+  async _unlessResolved(fn: () => Promise<number>): Promise<number> {
+    if (this.resolved) return undefined
+    this.resolved = true;
+    let res = await fn()
+    this.ack.acknowledge()
+    this.events.emit('acknowledged', this.msg, this.headers, this.info)
+    return res
+  }
 
-    _msgbody(msg: any, contentType: string) {
-        if (contentType === 'application/json') {
-            return msg;
-        } else {
-            return msg.data || msg;
-        }
-    }
+  acknowledge() { return this._unlessResolved(async () => undefined); }
 
-    async _unlessResolved(fn: () => Promise<number>): Promise<number> {
-        if (this.resolved) return undefined
-        this.resolved = true;
-        let res = await fn()
-        this.ack.acknowledge()
-        this.events.emit('acknowledged', this.msg, this.headers, this.info)
-        return res
-    }
+  retry() {
+    return this._unlessResolved(async () => {
+      const rc = (this.headers['tq-retry-count'] || 0) + 1;
+      if (rc <= this.maxRetries) {
+        await this.exchange.publish(
+          'retry',
+          this._msgbody(this.msg, this.info.contentType),
+          this._mkopts(this.headers, this.info, rc))
+        this.events.emit('retried', this.msg, this.headers, this.info)
+        return rc
+      } else {
+        await this.exchange.publish(
+          'fail',
+          this._msgbody(this.msg, this.info.contentType),
+          this._mkopts(this.headers, this.info, rc))
+        this.events.emit('failed', this.msg, this.headers, this.info)
+        return 0
+      }
+    });
+  }
 
-    acknowledge() { return this._unlessResolved(async () => undefined); }
-
-    retry() {
-        return this._unlessResolved(async () => {
-            const rc = (this.headers['tq-retry-count'] || 0) + 1;
-            if (rc <= this.maxRetries) {
-                await this.exchange.publish(
-                    'retry',
-                    this._msgbody(this.msg, this.info.contentType),
-                    this._mkopts(this.headers, this.info, rc))
-                this.events.emit('retried', this.msg, this.headers, this.info)
-                return rc
-            } else {
-                await this.exchange.publish(
-                    'fail',
-                    this._msgbody(this.msg, this.info.contentType),
-                    this._mkopts(this.headers, this.info, rc))
-                this.events.emit('failed', this.msg, this.headers, this.info)
-                return 0
-            }
-        });
-    }
-
-    async fail() {
-        return this._unlessResolved(async () => {
-            await this.exchange.publish(
-                'fail',
-                this._msgbody(this.msg, this.info.contentType),
-                this._mkopts(this.headers, this.info, this.headers['tq-retry-count'] || 0))
-                this.events.emit('failed', this.msg, this.headers, this.info)
-            return 0
-        });
-    }
+  async fail() {
+    return this._unlessResolved(async () => {
+      await this.exchange.publish(
+        'fail',
+        this._msgbody(this.msg, this.info.contentType),
+        this._mkopts(this.headers, this.info, this.headers['tq-retry-count'] || 0))
+      this.events.emit('failed', this.msg, this.headers, this.info)
+      return 0
+    });
+  }
 }
